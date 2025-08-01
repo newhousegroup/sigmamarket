@@ -51,7 +51,9 @@
             </svg>
           </span>
         </label>
-        <p style="right:0; padding:0; margin:0;">Logged in as: <b id="loggedin"></b></p>
+        <p style="right:0; padding:0; margin:0;" id="logintext" onclick="prelogout();">
+          Logged in as: <b id="loggedin"></b>
+        </p>
         <div class="trigger"></div>
       </nav>
     </div>
@@ -73,27 +75,37 @@
               padding: 6px;
               font-size: 16px;
             }
+
+            input {
+              width: 250px;
+            }
           </style>
 
-          <div id="loginBox">
+          <!-- Login UI -->
+          <div id="loginBox" style="width: 300px;">
             <h2>🔐 Login</h2>
-            <input type="text" id="username" placeholder="Username"><br>
-            <input type="password" id="pin" placeholder="4-digit PIN" maxlength="4"><br>
-            <button onclick="login()">Login</button>
+            <input type="text" id="username" placeholder="Username" style="width:100%"><br>
+            <input type="password" id="pin" placeholder="PIN" style="width:100%"><br>
+            <button onclick="login()" style="width:100%;"><b>Login</b></button><br><br>
+            <button onclick="signUp()" style="width:100%;">New player</button>
           </div>
 
+          <!-- Game UI -->
           <div id="gameBox" style="display:none;">
             <h2>💰 Balance: $<span id="balance">...</span></h2>
             <hr><br>
-            <div style="display: flex; gap: 20px;">
 
+            <div style="display: flex; flex-wrap: wrap; gap: 40px;">
+
+              <!-- Send Money -->
               <div style="display: flex; flex-direction: column;">
                 <p style="font-size:24px; font-weight:600;">Send Money</p>
                 <input type="text" id="recipient" placeholder="Recipient username">
-                <input type="number" id="amount" placeholder="Amount"><br>
+                <input type="number" id="amount" placeholder="Amount">
                 <button id="send">Send</button>
               </div>
 
+              <!-- Placeholder -->
               <div style="display: flex; flex-direction: column;">
                 <p style="font-size:24px; font-weight:600;">Coming Soon</p>
               </div>
@@ -102,13 +114,13 @@
 
           </div>
 
+          <!-- Script -->
           <script type="module" src="app.js"></script>
 
         </div>
       </article>
     </div>
   </main>
-
 </body>
 
 </html>
