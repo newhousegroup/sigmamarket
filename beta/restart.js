@@ -55,5 +55,5 @@ function reconnect() {
   headingEl.textContent = "Reconnecting...";
   setTimeout(() => {
     window.location.href = "index.html";
-  }, 2500);
+  }, 1000);
 }

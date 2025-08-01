@@ -372,9 +372,7 @@ async function checkServerStatus() {
     if (stopped === true && !alerted) {
       alerted = true;
       alert("Server restarting");
-      setTimeout(() => {
         window.location.href = "restart.html";
-      }, 10000);
     }
   } catch (err) {
     console.error("Error checking server status:", err);
