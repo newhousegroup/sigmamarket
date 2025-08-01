@@ -277,7 +277,6 @@ function animateNumber(element, start, end, duration = 500) {
 }
 
 window.spin = async function () {
-  window.spin = async function () {
   const spinCode = document.getElementById("spinCode").value.trim();
   if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
     alert("Please enter a valid amount to spin.");
