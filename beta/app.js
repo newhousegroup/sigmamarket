@@ -384,3 +384,12 @@ async function checkServerStatus() {
 // Check immediately, then every second
 checkServerStatus();
 setInterval(checkServerStatus, 1000);
+
+window.betasignup = function () {
+  const key = prompt("Please enter your access key.");
+  if (key === '076923') {
+    signUp();
+  } else {
+    alert("Incorrect access key.")
+  }
+}
