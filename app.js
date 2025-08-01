@@ -277,9 +277,26 @@ function animateNumber(element, start, end, duration = 500) {
 }
 
 window.spin = async function () {
+  window.spin = async function () {
   const spinCode = document.getElementById("spinCode").value.trim();
   if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
     alert("Please enter a valid amount to spin.");
+    return;
+  }
+
+  const playerRef = doc(db, "playerdata", currentUser);
+  const playerSnap = await getDoc(playerRef);
+
+  if (!playerSnap.exists()) {
+    alert("Player data not found. Please log in again.");
+    return;
+  }
+
+  const playerData = playerSnap.data();
+  const balance = playerData.balance;
+
+  if (parseInt(spinCode) > balance) {
+    alert("You don't have enough balance to spin that amount.");
     return;
   }
 
