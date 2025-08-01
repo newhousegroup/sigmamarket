@@ -145,8 +145,7 @@ pre>code {
 }
 
 .wrapper {
-  max-width: -webkit-calc(800px - (30px * 2));
-  max-width: calc(800px - (30px * 2));
+  max-width: 800px;
   margin-right: auto;
   margin-left: auto;
   padding-right: 30px;
@@ -712,4 +711,212 @@ table td {
 
 .highlight .il {
   color: #099
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #121212;
+    color: #ddd;
+  }
+
+  a {
+    color: #7ab8ff;
+  }
+
+  a:visited {
+    color: #5596e6;
+  }
+
+  a:hover {
+    color: #eee;
+  }
+
+  blockquote {
+    color: #aaa;
+    border-left-color: #444;
+  }
+
+  pre,
+  code {
+    background-color: #222;
+    border-color: #555;
+    color: #eee;
+  }
+
+  table {
+    color: #ccc;
+    border-color: #444;
+  }
+
+  table tr:nth-child(even) {
+    background-color: #1a1a1a;
+  }
+
+  table th {
+    background-color: #222;
+    border-color: #555;
+    border-bottom-color: #666;
+  }
+
+  table td {
+    border-color: #444;
+  }
+
+  .site-header {
+    border-top-color: #666;
+    border-bottom-color: #444;
+  }
+
+  .site-title,
+  .site-title:visited {
+    color: #ccc;
+  }
+
+  .site-nav .page-link {
+    color: #ddd;
+  }
+
+  .site-nav {
+    background-color: #121212;
+    border-color: #444;
+  }
+
+  .footer-col-wrapper {
+    color: #999;
+  }
+
+  .site-footer {
+    border-top-color: #444;
+  }
+
+  /* Highlights for syntax highlighting if used */
+  .highlight {
+    background: #222 !important;
+  }
+
+  .highlighter-rouge .highlight {
+    background: #333 !important;
+  }
+
+  .highlight .c,
+  .highlight .cm {
+    color: #999 !important;
+  }
+
+  .highlight .k,
+  .highlight .kc,
+  .highlight .kd,
+  .highlight .kp,
+  .highlight .kr {
+    color: #f88 !important;
+  }
+
+  .highlight .s,
+  .highlight .sb,
+  .highlight .sc,
+  .highlight .sd,
+  .highlight .s2,
+  .highlight .se,
+  .highlight .sh,
+  .highlight .si,
+  .highlight .sx {
+    color: #f99 !important;
+  }
+
+  .highlight .nf,
+  .highlight .ne,
+  .highlight .nn {
+    color: #ffc !important;
+  }
+
+  .highlight .na {
+    color: #aaf !important;
+  }
+
+  .highlight .nc {
+    color: #99f !important;
+  }
+
+  .highlight .nt {
+    color: #aff !important;
+  }
+
+  .highlight .nv {
+    color: #afa !important;
+  }
+
+  .highlight .vc,
+  .highlight .vg,
+  .highlight .vi {
+    color: #afa !important;
+  }
+
+  .highlight .ow {
+    color: #f8f !important;
+  }
+
+  .highlight .w {
+    color: #666 !important;
+  }
+
+
+  button {
+    background-color: #155ebd;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  input[type="text"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"] {
+    background-color: #222 !important;
+    color: #fff !important;
+  }
+
+}
+
+.inknut-light {
+  font-family: "Inknut Antiqua", serif;
+  font-weight: 300;
+  font-style: normal;
+}
+
+.inknut-regular {
+  font-family: "Inknut Antiqua", serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.inknut-medium {
+  font-family: "Inknut Antiqua", serif;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.inknut-semibold {
+  font-family: "Inknut Antiqua", serif;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.inknut-bold {
+  font-family: "Inknut Antiqua", serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.inknut-extrabold {
+  font-family: "Inknut Antiqua", serif;
+  font-weight: 800;
+  font-style: normal;
+}
+
+.inknut-black {
+  font-family: "Inknut Antiqua", serif;
+  font-weight: 900;
+  font-style: normal;
 }
