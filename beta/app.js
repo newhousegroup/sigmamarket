@@ -1,5 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { 
+  initializeApp 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import { 
+  getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC0Ojzt2HxZzTwmUZsX9ZEZ31NiyNqo6B8",
@@ -16,7 +21,6 @@ const db = getFirestore(app);
 
 let currentUser = null;
 
-// Restore session on load
 window.onload = () => {
   const saved = localStorage.getItem("playerdata");
   if (saved) {
@@ -28,7 +32,6 @@ window.onload = () => {
   }
 };
 
-// Enter key login
 ["username", "pin"].forEach(id => {
   document.getElementById(id).addEventListener("keypress", (e) => {
     if (e.key === "Enter") login();
@@ -61,7 +64,6 @@ window.login = async function () {
   }
 };
 
-
 function saveAndShow(username, pin, balance) {
   localStorage.setItem("playerdata", JSON.stringify({ username, pin, balance }));
   showGameUI(username, balance);
@@ -74,7 +76,7 @@ function showGameUI(username, balance) {
 
   if (username === "admin") {
     document.getElementById("gameBox").style.display = "none";
-    // Future: show admin panel here
+    // Admin panel could go here
   } else {
     document.getElementById("gameBox").style.display = "block";
     document.getElementById("balance").textContent = balance;
@@ -117,7 +119,7 @@ document.getElementById("send").addEventListener("click", async () => {
   const newBalance = senderData.balance - amount;
   document.getElementById("balance").textContent = newBalance;
 
-  const saved = JSON.parse(localStorage.getItem("playerdata"));
+  const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
   saved.balance = newBalance;
   localStorage.setItem("playerdata", JSON.stringify(saved));
 
@@ -163,9 +165,64 @@ window.signUp = async function () {
     return;
   }
 
-  const startingBalance = 1000;
+  const startingBalance = 0;
   await setDoc(userRef, { pin, balance: startingBalance });
   currentUser = username;
   saveAndShow(username, pin, startingBalance);
   alert("Welcome to Sigma Market Online!");
+};
+
+window.redeemCode = async function () {
+  if (!currentUser) {
+    alert("Please log in first.");
+    return;
+  }
+
+  const codeInput = document.getElementById("redeemID").value.trim();
+
+  if (!codeInput) {
+    alert("Please enter a code.");
+    return;
+  }
+
+  const codeRef = doc(db, "codes", codeInput);
+  const playerRef = doc(db, "playerdata", currentUser);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const codeSnap = await transaction.get(codeRef);
+      if (!codeSnap.exists()) {
+        throw new Error("Invalid code.");
+      }
+
+      const codeData = codeSnap.data();
+      if (codeData.uses <= 0) {
+        throw new Error("This code has already been fully redeemed.");
+      }
+
+      const playerSnap = await transaction.get(playerRef);
+      const playerData = playerSnap.exists() ? playerSnap.data() : { balance: 0 };
+
+      const newBalance = (playerData.balance || 0) + codeData.amount;
+
+      transaction.update(playerRef, { balance: newBalance });
+      transaction.update(codeRef, { uses: codeData.uses - 1 });
+    });
+
+    // Fetch updated player data to update UI & localStorage
+    const updatedPlayerSnap = await getDoc(playerRef);
+    const updatedPlayerData = updatedPlayerSnap.data();
+    const updatedBalance = updatedPlayerData.balance;
+
+    document.getElementById("balance").textContent = updatedBalance;
+
+    const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
+    saved.balance = updatedBalance;
+    localStorage.setItem("playerdata", JSON.stringify(saved));
+
+    alert(`Code redeemed! You received coins.`);
+  } catch (err) {
+    alert(err.message || "Something went wrong. Please try again.");
+    console.error(err);
+  }
 };
