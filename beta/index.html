@@ -84,25 +84,25 @@
             <h2>💰 Balance: $<span id="balance">...</span></h2>
             <hr><br>
 
-            <div style="display: flex; flex-wrap: wrap; gap: 40px;">
+            <div style="display: flex; flex-wrap: no; overflow-x:scroll; gap: 20px; flex-direction: row;">
 
-              <!-- Send Money -->
               <div style="display: flex; flex-direction: column;">
                 <p style="font-size:28px; font-weight:200;">Bank</p>
                 <p style="font-size:22px; font-weight:600; margin-bottom:0;">Send Money</p>
                 <input type="text" id="recipient" placeholder="Recipient username">
-                <input type="number" id="amount" placeholder="Amount">
+                <input type="tel" id="amount" placeholder="Amount">
                 <button id="send">Send</button><br>
                 <p style="font-size:22px; font-weight:600; margin-bottom:0;">Redeem Money</p>
                 <input type="text" id="redeemID" placeholder="Enter Code">
                 <button id="sendr" onclick="redeemCode()">Redeem</button><br>
               </div>
 
-              <!-- Placeholder -->
               <div style="display: flex; flex-direction: column;">
-                <p style="font-size:24px; font-weight:600;">Coming Soon</p>
+                <p style="font-size:28px; font-weight:200;">Lucky Spin</p>
+                <input type="tel" id="spinCode" style="font-size:24px; text-align:center;" placeholder="Enter Amount">
+                <button id="spin" style="font-size:24px; border-radius: 8px;" onclick="spin()">Spin</button>
+                <p id="spinResult" style="font-size:24px; font-weight:400; margin-top:10px;"></p>
               </div>
-
             </div>
 
           </div>

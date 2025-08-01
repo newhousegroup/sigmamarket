@@ -1,9 +1,9 @@
-import { 
-  initializeApp 
+import {
+  initializeApp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
-import { 
-  getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction 
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -27,6 +27,7 @@ window.onload = () => {
     const player = JSON.parse(saved);
     currentUser = player.username;
     showGameUI(player.username, player.balance);
+    startBalancePolling();
   } else {
     document.getElementById("logintext").style.display = "none";
   }
@@ -59,6 +60,7 @@ window.login = async function () {
   if (data.pin === pin) {
     currentUser = username;
     saveAndShow(username, pin, data.balance);
+    startBalancePolling();
   } else {
     alert("Wrong PIN");
   }
@@ -74,13 +76,10 @@ function showGameUI(username, balance) {
   document.getElementById("logintext").style.display = "block";
   document.getElementById("loggedin").textContent = username;
 
-  if (username === "admin") {
-    document.getElementById("gameBox").style.display = "none";
-    // Admin panel could go here
-  } else {
-    document.getElementById("gameBox").style.display = "block";
-    document.getElementById("balance").textContent = balance;
-  }
+  document.getElementById("gameBox").style.display = "block";
+  // Show balance instantly on login (no animation)
+  document.getElementById("balance").textContent = balance;
+
 }
 
 document.getElementById("send").addEventListener("click", async () => {
@@ -117,7 +116,9 @@ document.getElementById("send").addEventListener("click", async () => {
   await updateDoc(recipientRef, { balance: recipientData.balance + amount });
 
   const newBalance = senderData.balance - amount;
-  document.getElementById("balance").textContent = newBalance;
+  const balanceEl = document.getElementById("balance");
+  const currentDisplayed = parseInt(balanceEl.textContent) || 0;
+  animateNumber(balanceEl, currentDisplayed, newBalance);
 
   const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
   saved.balance = newBalance;
@@ -170,6 +171,7 @@ window.signUp = async function () {
   currentUser = username;
   saveAndShow(username, pin, startingBalance);
   alert("Welcome to Sigma Market Online!");
+  startBalancePolling();
 };
 
 window.redeemCode = async function () {
@@ -214,15 +216,171 @@ window.redeemCode = async function () {
     const updatedPlayerData = updatedPlayerSnap.data();
     const updatedBalance = updatedPlayerData.balance;
 
-    document.getElementById("balance").textContent = updatedBalance;
+    alert(`Code redeemed successfully!`);
+
+    const balanceEl = document.getElementById("balance");
+    const currentDisplayed = parseInt(balanceEl.textContent) || 0;
+    animateNumber(balanceEl, currentDisplayed, updatedBalance);
 
     const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
     saved.balance = updatedBalance;
     localStorage.setItem("playerdata", JSON.stringify(saved));
 
-    alert(`Code redeemed! You received coins.`);
   } catch (err) {
     alert(err.message || "Something went wrong. Please try again.");
     console.error(err);
   }
 };
+
+function startBalancePolling() {
+  if (!currentUser) return;
+
+  const playerRef = doc(db, "playerdata", currentUser);
+
+  setInterval(async () => {
+    try {
+      const snap = await getDoc(playerRef);
+      if (snap.exists()) {
+        const newBalance = snap.data().balance;
+
+        // Update UI if changed
+        const localData = JSON.parse(localStorage.getItem("playerdata")) || {};
+        if (localData.balance !== newBalance) {
+          const balanceEl = document.getElementById("balance");
+          const currentDisplayed = parseInt(balanceEl.textContent) || 0;
+          animateNumber(balanceEl, currentDisplayed, newBalance);
+
+          localData.balance = newBalance;
+          localStorage.setItem("playerdata", JSON.stringify(localData));
+          console.log("[Poll] Balance updated to:", newBalance);
+        }
+      }
+    } catch (err) {
+      console.error("Polling error:", err);
+    }
+  }, 1000);
+}
+
+function animateNumber(element, start, end, duration = 500) {
+  const startTimestamp = performance.now();
+  const step = (currentTime) => {
+    const progress = Math.min((currentTime - startTimestamp) / duration, 1);
+    const currentValue = Math.floor(progress * (end - start) + start);
+    element.textContent = currentValue;
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      element.textContent = end; // ensure exact final value
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+window.spin = async function () {
+  const spinCode = document.getElementById("spinCode").value.trim();
+  if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
+    alert("Please enter a valid amount to spin.");
+    return;
+  }
+
+  document.getElementById("spinResult").innerHTML = "Spinning";
+  let dots = "";
+  const spinResultEl = document.getElementById("spinResult");
+  const spinInterval = setInterval(() => {
+    if (dots.length < 3) {
+      dots += ".";
+    } else {
+      dots = "";
+    }
+    spinResultEl.innerHTML = `Spinning${dots}`;
+  }, 300);
+  // Wait for 3 seconds before spinning
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  clearInterval(spinInterval);
+  document.getElementById("spinResult").innerHTML = "Please wait";
+  await new Promise(resolve => setTimeout(resolve, 200));
+
+  //160 chance to lose spin amount, 40 chance to get x1 (no gain no loss), 24 to get x2, 12 to get 3, 7 to get 5, 4 to get 10, 2 to get 20 and 1 to get 100. Total chance is 250.
+
+  const random = Math.floor(Math.random() * 250) + 1;
+  let result = 0;
+  if (random <= 160) {
+    result = -parseInt(spinCode); // Lose the spin amount
+  } else if (random <= 200) {
+    result = parseInt(spinCode); // x1, no gain no loss
+  } else if (random <= 224) {
+    result = parseInt(spinCode) * 2; // x2
+  } else if (random <= 236) {
+    result = parseInt(spinCode) * 3; // x3
+  } else if (random <= 243) {
+    result = parseInt(spinCode) * 5; // x5
+  } else if (random <= 247) {
+    result = parseInt(spinCode) * 10; // x10
+  } else if (random <= 249) {
+    result = parseInt(spinCode) * 20; // x20
+  } else {
+    result = parseInt(spinCode) * 100; // x100
+  }
+  const playerRef = doc(db, "playerdata", currentUser);
+  const playerSnap = await getDoc(playerRef);
+  if (!playerSnap.exists()) {
+    alert("Player data not found. Please log in again.");
+    return;
+  }
+  const playerData = playerSnap.data();
+  const newBalance = playerData.balance + result;
+  await updateDoc(playerRef, { balance: newBalance });
+  const balanceEl = document.getElementById("balance");
+  const currentDisplayed = parseInt(balanceEl.textContent) || 0;
+  animateNumber(balanceEl, currentDisplayed, newBalance);
+  const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
+  saved.balance = newBalance;
+  localStorage.setItem("playerdata", JSON.stringify(saved));
+
+  if (result < 0) {
+    document.getElementById("spinResult").innerHTML = `You <b>lost</b> $${-result}`;
+  } else if (result === parseInt(spinCode) * 100) {
+    document.getElementById("spinResult").innerHTML = `You <b>won</b> $${result}<br><b id="jackpot" style="">JACKPOT</b>`;
+    // Flash rainbow effect for JACKPOT
+    const jackpotEl = document.getElementById("jackpot");
+    let colors = ["yellow", "green", "blue", "indigo", "violet", "red", "orange"];
+    let i = 0;
+    const interval = setInterval(() => {
+      jackpotEl.style.color = colors[i % colors.length];
+      i++;
+      if (i > 20) {
+        clearInterval(interval);
+        jackpotEl.style.display = 'none';
+      }
+    }, 75);
+  } else {
+    document.getElementById("spinResult").innerHTML = `You <b>won</b> $${result}`;
+  }
+}
+
+const serverRef = doc(db, "server", "status");
+
+let alerted = false;
+
+async function checkServerStatus() {
+  try {
+    const snap = await getDoc(serverRef);
+    if (!snap.exists()) return;
+
+    const stopped = snap.data().stopped;
+
+    if (stopped === true && !alerted) {
+      alerted = true;
+      alert("Server restarting");
+      setTimeout(() => {
+        window.location.href = "restart.html";
+      }, 10000);
+    }
+  } catch (err) {
+    console.error("Error checking server status:", err);
+  }
+}
+
+// Check immediately, then every second
+checkServerStatus();
+setInterval(checkServerStatus, 1000);
