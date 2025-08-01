@@ -59,7 +59,19 @@ window.login = async function () {
   const data = userSnap.data();
   if (data.pin === pin) {
     currentUser = username;
-    saveAndShow(username, pin, data.balance);
+
+    // Always fetch fresh data and update localStorage
+    const freshSnap = await getDoc(userRef);
+    const freshData = freshSnap.data();
+    const latestBalance = freshData.balance;
+
+    localStorage.setItem("playerdata", JSON.stringify({
+      username: username,
+      pin: pin,
+      balance: latestBalance
+    }));
+
+    showGameUI(username, latestBalance);
     startBalancePolling();
   } else {
     alert("Wrong PIN");
