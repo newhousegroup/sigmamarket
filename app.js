@@ -337,13 +337,6 @@ window.spin = async function () {
   } else {
     result = parseInt(spinCode) * 100; // x100
   }
-  const playerRef = doc(db, "playerdata", currentUser);
-  const playerSnap = await getDoc(playerRef);
-  if (!playerSnap.exists()) {
-    alert("Player data not found. Please log in again.");
-    return;
-  }
-  const playerData = playerSnap.data();
   const newBalance = playerData.balance + result;
   await updateDoc(playerRef, { balance: newBalance });
   const balanceEl = document.getElementById("balance");

@@ -283,6 +283,22 @@ window.spin = async function () {
     return;
   }
 
+  const playerRef = doc(db, "playerdata", currentUser);
+  const playerSnap = await getDoc(playerRef);
+
+  if (!playerSnap.exists()) {
+    alert("Player data not found. Please log in again.");
+    return;
+  }
+
+  const playerData = playerSnap.data();
+  const balance = playerData.balance;
+
+  if (parseInt(spinCode) > balance) {
+    alert("You don't have enough balance to spin that amount.");
+    return;
+  }
+
   document.getElementById("spinResult").innerHTML = "Spinning";
   let dots = "";
   const spinResultEl = document.getElementById("spinResult");
@@ -321,13 +337,6 @@ window.spin = async function () {
   } else {
     result = parseInt(spinCode) * 100; // x100
   }
-  const playerRef = doc(db, "playerdata", currentUser);
-  const playerSnap = await getDoc(playerRef);
-  if (!playerSnap.exists()) {
-    alert("Player data not found. Please log in again.");
-    return;
-  }
-  const playerData = playerSnap.data();
   const newBalance = playerData.balance + result;
   await updateDoc(playerRef, { balance: newBalance });
   const balanceEl = document.getElementById("balance");
@@ -358,6 +367,7 @@ window.spin = async function () {
   }
 }
 
+/*
 const serverRef = doc(db, "server", "status");
 
 let alerted = false;
@@ -382,6 +392,7 @@ async function checkServerStatus() {
 // Check immediately, then every second
 checkServerStatus();
 setInterval(checkServerStatus, 1000);
+*/
 
 window.betasignup = function () {
   const key = prompt("Please enter your access key.");
