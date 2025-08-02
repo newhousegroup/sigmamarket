@@ -320,13 +320,13 @@ window.spin = async function () {
 
   const random = Math.floor(Math.random() * 300) + 1;
   let result = 0;
-  if (random <= 200) {
+  if (random <= 180) {
     result = -parseInt(spinCode); // Lose the spin amount
   } /*else if (random <= 250) {
     result = parseInt(spinCode) * 0; // x1, no gain no loss
-  } */else if (random <= 274) {
+  } */else if (random <= 270) {
     result = parseInt(spinCode) * 1; // x2
-  } else if (random <= 286) {
+  } else if (random <= 280) {
     result = parseInt(spinCode) * 2; // x3
   } else if (random <= 293) {
     result = parseInt(spinCode) * 4; // x5
