@@ -258,7 +258,7 @@ function startBalancePolling() {
     } catch (err) {
       console.error("Polling error:", err);
     }
-  }, 1000);
+  }, 5000);
 }
 
 function animateNumber(element, start, end, duration = 500) {
@@ -390,13 +390,8 @@ async function checkServerStatus() {
 
 // Check immediately, then every second
 checkServerStatus();
-setInterval(checkServerStatus, 1000);
+setInterval(checkServerStatus, 5000);
 
 window.betasignup = function () {
-  const key = prompt("Please enter your access key.");
-  if (key === '076923') {
-    signUp();
-  } else {
-    alert("Incorrect access key.")
-  }
+  signUp();
 }
