@@ -316,23 +316,23 @@ window.spin = async function () {
   document.getElementById("spinResult").innerHTML = "Please wait";
   await new Promise(resolve => setTimeout(resolve, 200));
 
-  //160 chance to lose spin amount, 40 chance to get x1 (no gain no loss), 24 to get x2, 12 to get 3, 7 to get 5, 4 to get 10, 2 to get 20 and 1 to get 100. Total chance is 250.
 
-  const random = Math.floor(Math.random() * 250) + 1;
+
+  const random = Math.floor(Math.random() * 300) + 1;
   let result = 0;
-  if (random <= 160) {
+  if (random <= 200) {
     result = -parseInt(spinCode); // Lose the spin amount
-  } else if (random <= 200) {
+  } else if (random <= 250) {
     result = parseInt(spinCode); // x1, no gain no loss
-  } else if (random <= 224) {
+  } else if (random <= 274) {
     result = parseInt(spinCode) * 2; // x2
-  } else if (random <= 236) {
+  } else if (random <= 286) {
     result = parseInt(spinCode) * 3; // x3
-  } else if (random <= 243) {
+  } else if (random <= 293) {
     result = parseInt(spinCode) * 5; // x5
-  } else if (random <= 247) {
+  } else if (random <= 297) {
     result = parseInt(spinCode) * 10; // x10
-  } else if (random <= 249) {
+  } else if (random <= 299) {
     result = parseInt(spinCode) * 20; // x20
   } else {
     result = parseInt(spinCode) * 100; // x100
