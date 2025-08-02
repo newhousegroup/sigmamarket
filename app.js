@@ -323,17 +323,17 @@ window.spin = async function () {
   if (random <= 200) {
     result = -parseInt(spinCode); // Lose the spin amount
   } else if (random <= 250) {
-    result = parseInt(spinCode); // x1, no gain no loss
+    result = parseInt(spinCode) * 0; // x1, no gain no loss
   } else if (random <= 274) {
-    result = parseInt(spinCode) * 2; // x2
+    result = parseInt(spinCode) * 1; // x2
   } else if (random <= 286) {
-    result = parseInt(spinCode) * 3; // x3
+    result = parseInt(spinCode) * 2; // x3
   } else if (random <= 293) {
-    result = parseInt(spinCode) * 5; // x5
+    result = parseInt(spinCode) * 4; // x5
   } else if (random <= 297) {
-    result = parseInt(spinCode) * 10; // x10
+    result = parseInt(spinCode) * 9; // x10
   } else if (random <= 299) {
-    result = parseInt(spinCode) * 20; // x20
+    result = parseInt(spinCode) * 19; // x20
   } else {
     result = parseInt(spinCode) * 100; // x100
   }
