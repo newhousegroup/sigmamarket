@@ -877,6 +877,10 @@ table td {
     color: #fff !important;
   }
 
+  button:disabled {
+    background-color: #333333;
+    color: #888888;
+  }
 }
 
 .inknut-light {
