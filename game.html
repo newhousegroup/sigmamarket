@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Sigma Market | Economy Game</title>
+  <meta name="generator" content="Jekyll v3.10.0">
+  <meta property="og:title" content="Sigma Market">
+  <meta name="author" content="Made by Newhouse">
+  <meta property="og:locale" content="en_US">
+  <meta name="description" content="Play the multiplayer economy game using username + PIN.">
+  <meta property="og:description" content="Play the multiplayer economy game using username + PIN.">
+  <link rel="canonical" href="http://newhs.cc/sigmamarket/beta/">
+  <meta property="og:url" content="http://newhs.cc/sigmamarket/beta/">
+  <meta property="og:site_name" content="Sigma Market">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <meta property="twitter:title" content="Sigma Market">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "author": {
+      "@type": "Person",
+      "name": "Made by Newhouse"
+    },
+    "description": "Play the multiplayer economy game.",
+    "headline": "Sigma Market",
+    "url": "http://newhs.cc/sigmamarket/beta/"
+  }
+  </script>
+  <link rel="stylesheet" href="main.css">
+  <link type="application/atom+xml" rel="alternate" href="http://newhs.cc/sigmamarket/feed.xml" title="Sigma Market">
+</head>
+
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper" style="display:flex; align-items:center; justify-content:space-between;">
+      <p class="site-title" style="margin: 0; white-space:nowrap;">Sigma Market Online</p>
+        <p style="margin:0; padding:0; line-height:110%; text-align:right; flex:1;" id="logintext" onclick="prelogout();">
+          Logged in as: <b id="loggedin"></b>
+        </p>
+        
+    </div>
+  </header>
+
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post">
+        <header class="post-header">
+          <h1 class="post-title">🏦 Sigma Market</h1>
+        </header>
+
+        <div class="post-content">
+
+          <style>
+            input,
+            button {
+              margin: 5px;
+              padding: 6px;
+              font-size: 16px;
+            }
+
+            input {
+              width: 250px;
+            }
+          </style>
+
+          <!-- Login UI -->
+          <div id="loginBox" style="width: 300px;">
+            <h2>🔐 Login</h2>
+            <input type="text" id="username" placeholder="Username" style="width:100%"><br>
+            <input type="password" id="pin" placeholder="PIN" style="width:100%"><br>
+            <button onclick="login()" style="width:100%;"><b>Login</b></button><br><br>
+            <button onclick="betasignup()" style="width:100%;">New player</button>
+            <br><br>
+            <p style="font-size:12px;">The system is currently in beta testing phase. There may be bugs. Please report them to the developer.</p>
+          </div>
+
+          <!-- Game UI -->
+          <div id="gameBox" style="display:none;">
+            <h2>💰 Balance: $<span id="balance">...</span></h2>
+            <hr><br>
+
+            <div style="display: flex; flex-wrap: no; overflow-x:scroll; gap: 20px; flex-direction: row;">
+
+              <div style="display: flex; flex-direction: column;">
+                <p style="font-size:28px; font-weight:200;">Bank</p>
+                <p style="font-size:22px; font-weight:600; margin-bottom:0;">Send Money</p>
+                <input type="text" id="recipient" placeholder="Recipient username">
+                <input type="tel" id="amount" placeholder="Amount">
+                <button id="send">Send</button><br>
+                <p style="font-size:22px; font-weight:600; margin-bottom:0;">Redeem Money</p>
+                <input type="text" id="redeemID" placeholder="Enter Code">
+                <button id="sendr" onclick="redeemCode()">Redeem</button><br>
+              </div>
+
+              <div style="display: flex; flex-direction: column;">
+                <p style="font-size:28px; font-weight:200;">Lucky Spin</p>
+                <input type="tel" id="spinCode" style="font-size:24px; text-align:center;" placeholder="Enter Amount">
+                <button id="spin" style="font-size:24px; border-radius: 8px;" onclick="spin()">Spin</button>
+                <p id="spinResult" style="font-size:24px; font-weight:400; margin-top:10px;"></p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Script -->
+          <script type="module" src="app.js"></script>
+
+        </div>
+      </article>
+    </div>
+  </main>
+</body>
+
+</html>

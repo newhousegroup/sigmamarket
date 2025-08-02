@@ -299,58 +299,61 @@ window.spin = async function () {
   const spinBtn = document.getElementById("spin");
   spinBtn.disabled = true;
 
+  const spinCode = document.getElementById("spinCode").value.trim();
+  if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
+    alert("Please enter a valid amount to spin.");
+    spinBtn.disabled = false;
+    return;
+  }
+
+  const amount = parseInt(spinCode);
+  const playerRef = doc(db, "playerdata", currentUser);
+  const playerSnap = await getDoc(playerRef);
+
+  if (!playerSnap.exists()) {
+    alert("Player data not found. Please log in again.");
+    spinBtn.disabled = false;
+    return;
+  }
+
+  const playerData = playerSnap.data();
+  if (amount > playerData.balance) {
+    alert("You don't have enough balance to spin that amount.");
+    spinBtn.disabled = false;
+    return;
+  }
+
+  const spinResultEl = document.getElementById("spinResult");
+  spinResultEl.innerHTML = "Spinning";
+  let dots = "";
+  const spinInterval = setInterval(() => {
+    dots = dots.length < 3 ? dots + "." : "";
+    spinResultEl.innerHTML = `Spinning${dots}`;
+  }, 300);
+
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  clearInterval(spinInterval);
+  spinResultEl.innerHTML = "Please wait";
+  await new Promise(resolve => setTimeout(resolve, 200));
+
   try {
-    const spinCode = document.getElementById("spinCode").value.trim();
-    if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
-      alert("Please enter a valid amount to spin.");
-      return;
-    }
-
-    const amount = parseInt(spinCode);
-    const playerRef = doc(db, "playerdata", currentUser);
-    const playerSnap = await getDoc(playerRef);
-
-    if (!playerSnap.exists()) {
-      alert("Player data not found. Please log in again.");
-      return;
-    }
-
-    const playerData = playerSnap.data();
-    if (amount > playerData.balance) {
-      alert("You don't have enough balance to spin that amount.");
-      return;
-    }
-
-    const spinResultEl = document.getElementById("spinResult");
-    spinResultEl.innerHTML = "Spinning";
-    let dots = "";
-    const spinInterval = setInterval(() => {
-      dots = dots.length < 3 ? dots + "." : "";
-      spinResultEl.innerHTML = `Spinning${dots}`;
-    }, 300);
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    clearInterval(spinInterval);
-    spinResultEl.innerHTML = "Please wait";
-    await new Promise(resolve => setTimeout(resolve, 200));
-
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
 
-    if (random <= 120) {
+    if (random <= 144) {
       result = -amount;             // x0
-    } else if (random <= 200) {
-      result = amount * 1;          // x2
-    } else if (random <= 220) {
-      result = amount * 2;          // x3
-    } else if (random <= 231) {
-      result = amount * 4;          // x5
-    } else if (random <= 236) {
-      result = amount * 9;          // x10
-    } else if (random <= 239) {
-      result = amount * 24;         // x25
+    } else if (random <= 224) {
+      result = amount * 2;          // x2
+    } else if (random <= 244) {
+      result = amount * 3;          // x3
+    } else if (random <= 255) {
+      result = amount * 5;          // x5
+    } else if (random <= 258) {
+      result = amount * 10;         // x10
+    } else if (random <= 260) {
+      result = amount * 25;         // x25
     } else {
-      result = amount * 200;        // Jackpot
+      result = amount * 200;        // jackpot
     }
 
     const newBalance = playerData.balance + result;
@@ -382,10 +385,15 @@ window.spin = async function () {
     } else {
       spinResultEl.innerHTML = `You <b>won</b> $${result}`;
     }
-  } finally {
-    spinBtn.disabled = false; // Always re-enable, even on error or early return
+
+  } catch (err) {
+    alert("Error: " + err.message);
+    console.error(err);
+    spinResultEl.innerHTML = "Something went wrong.";
   }
-};
+
+  spinBtn.disabled = false;
+}
 
 const serverRef = doc(db, "server", "status");
 
