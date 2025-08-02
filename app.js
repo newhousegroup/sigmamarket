@@ -318,10 +318,8 @@ window.spin = async function () {
   const random = Math.floor(Math.random() * 240) + 1;
   let result = 0;
 
-  if (random <= 60) {
+  if (random <= 120) {
     result = -amount;             // x0, lose spin amount
-  } else if (random <= 120) {
-    result = 0;                   // x1, no gain no loss
   } else if (random <= 200) {
     result = amount * 1;          // x2, net gain 1x spin amount
   } else if (random <= 220) {
@@ -333,7 +331,7 @@ window.spin = async function () {
   } else if (random <= 239) {
     result = amount * 24;         // x25, net gain 24x spin amount
   } else {
-    result = amount * 199;        // Jackpot, net gain 199x spin amount
+    result = amount * 200;        // Jackpot, net gain 199x spin amount
   }
 
   const newBalance = playerData.balance + result;
