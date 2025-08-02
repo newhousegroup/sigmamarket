@@ -277,9 +277,13 @@ function animateNumber(element, start, end, duration = 500) {
 }
 
 window.spin = async function () {
+  const spinBtn = document.getElementById("spin");
+  spinBtn.disabled = true;
+
   const spinCode = document.getElementById("spinCode").value.trim();
   if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
     alert("Please enter a valid amount to spin.");
+    spinBtn.disabled = false;
     return;
   }
 
@@ -289,12 +293,14 @@ window.spin = async function () {
 
   if (!playerSnap.exists()) {
     alert("Player data not found. Please log in again.");
+    spinBtn.disabled = false;
     return;
   }
 
   const playerData = playerSnap.data();
   if (amount > playerData.balance) {
     alert("You don't have enough balance to spin that amount.");
+    spinBtn.disabled = false;
     return;
   }
 
@@ -319,19 +325,19 @@ window.spin = async function () {
   let result = 0;
 
   if (random <= 120) {
-    result = -amount;             // x0, lose spin amount
+    result = -amount;             // x0
   } else if (random <= 200) {
-    result = amount * 1;          // x2, net gain 1x spin amount
+    result = amount * 1;          // x2
   } else if (random <= 220) {
-    result = amount * 2;          // x3, net gain 2x spin amount
+    result = amount * 2;          // x3
   } else if (random <= 231) {
-    result = amount * 4;          // x5, net gain 4x spin amount
+    result = amount * 4;          // x5
   } else if (random <= 236) {
-    result = amount * 9;          // x10, net gain 9x spin amount
+    result = amount * 9;          // x10
   } else if (random <= 239) {
-    result = amount * 24;         // x25, net gain 24x spin amount
+    result = amount * 24;         // x25
   } else {
-    result = amount * 200;        // Jackpot, net gain 199x spin amount
+    result = amount * 200;        // Jackpot
   }
 
   const newBalance = playerData.balance + result;
@@ -346,9 +352,9 @@ window.spin = async function () {
   localStorage.setItem("playerdata", JSON.stringify(saved));
 
   if (result < 0) {
-    document.getElementById("spinResult").innerHTML = `You <b>lost</b> $${-result}`;
-  } else if (result === amount * 199) {
-    document.getElementById("spinResult").innerHTML = `You <b>won</b> $${result}<br><b id="jackpot">JACKPOT</b>`;
+    spinResultEl.innerHTML = `You <b>lost</b> $${-result}`;
+  } else if (result === amount * 200) {
+    spinResultEl.innerHTML = `You <b>won</b> $${result}<br><b id="jackpot">JACKPOT</b>`;
     const jackpotEl = document.getElementById("jackpot");
     let colors = ["yellow", "green", "blue", "indigo", "violet", "red", "orange"];
     let i = 0;
@@ -361,9 +367,12 @@ window.spin = async function () {
       }
     }, 75);
   } else {
-    document.getElementById("spinResult").innerHTML = `You <b>won</b> $${result}`;
+    spinResultEl.innerHTML = `You <b>won</b> $${result}`;
   }
+
+  spinBtn.disabled = false;
 }
+
 
 const serverRef = doc(db, "server", "status");
 
