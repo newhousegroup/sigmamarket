@@ -318,25 +318,24 @@ window.spin = async function () {
 
 
 
-  const random = Math.floor(Math.random() * 300) + 1;
-  let result = 0;
-  if (random <= 180) {
-    result = -parseInt(spinCode); // Lose the spin amount
-  } /*else if (random <= 250) {
-    result = parseInt(spinCode) * 0; // x1, no gain no loss
-  } */else if (random <= 260) {
-    result = parseInt(spinCode) * 1; // x2
-  } else if (random <= 280) {
-    result = parseInt(spinCode) * 2; // x3
-  } else if (random <= 293) {
-    result = parseInt(spinCode) * 4; // x5
-  } else if (random <= 297) {
-    result = parseInt(spinCode) * 9; // x10
-  } else if (random <= 299) {
-    result = parseInt(spinCode) * 19; // x20
-  } else {
-    result = parseInt(spinCode) * 100; // x100
-  }
+  const random = Math.floor(Math.random() * 300) + 1; // Generates a number from 1 to 300
+let result = 0;
+
+if (random <= 130) {
+  result = -parseInt(spinCode); // Lose the spin amount
+} else if (random <= 260) {
+  result = parseInt(spinCode) * 1; // x2 (gain spinCode amount)
+} else if (random <= 280) {
+  result = parseInt(spinCode) * 2; // x3
+} else if (random <= 293) {
+  result = parseInt(spinCode) * 4; // x5
+} else if (random <= 297) {
+  result = parseInt(spinCode) * 9; // x10
+} else if (random <= 299) {
+  result = parseInt(spinCode) * 19; // x20
+} else {
+  result = parseInt(spinCode) * 100; // x100 jackpot
+}
   const newBalance = playerData.balance + result;
   await updateDoc(playerRef, { balance: newBalance });
   const balanceEl = document.getElementById("balance");
