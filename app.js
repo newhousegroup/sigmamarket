@@ -283,6 +283,7 @@ window.spin = async function () {
     return;
   }
 
+  const amount = parseInt(spinCode);
   const playerRef = doc(db, "playerdata", currentUser);
   const playerSnap = await getDoc(playerRef);
 
@@ -292,9 +293,7 @@ window.spin = async function () {
   }
 
   const playerData = playerSnap.data();
-  const balance = playerData.balance;
-
-  if (parseInt(spinCode) > balance) {
+  if (amount > playerData.balance) {
     alert("You don't have enough balance to spin that amount.");
     return;
   }
@@ -310,46 +309,48 @@ window.spin = async function () {
     }
     spinResultEl.innerHTML = `Spinning${dots}`;
   }, 300);
-  // Wait for 3 seconds before spinning
+
   await new Promise(resolve => setTimeout(resolve, 3000));
   clearInterval(spinInterval);
   document.getElementById("spinResult").innerHTML = "Please wait";
   await new Promise(resolve => setTimeout(resolve, 200));
 
+  const random = Math.floor(Math.random() * 240) + 1;
+  let result = 0;
 
+  if (random <= 60) {
+    result = -amount;             // x0, lose spin amount
+  } else if (random <= 120) {
+    result = 0;                   // x1, no gain no loss
+  } else if (random <= 200) {
+    result = amount * 1;          // x2, net gain 1x spin amount
+  } else if (random <= 220) {
+    result = amount * 2;          // x3, net gain 2x spin amount
+  } else if (random <= 231) {
+    result = amount * 4;          // x5, net gain 4x spin amount
+  } else if (random <= 236) {
+    result = amount * 9;          // x10, net gain 9x spin amount
+  } else if (random <= 239) {
+    result = amount * 24;         // x25, net gain 24x spin amount
+  } else {
+    result = amount * 199;        // Jackpot, net gain 199x spin amount
+  }
 
-  const random = Math.floor(Math.random() * 300) + 1; // Generates a number from 1 to 300
-let result = 0;
-
-if (random <= 130) {
-  result = -parseInt(spinCode); // Lose the spin amount
-} else if (random <= 260) {
-  result = parseInt(spinCode) * 1; // x2 (gain spinCode amount)
-} else if (random <= 280) {
-  result = parseInt(spinCode) * 2; // x3
-} else if (random <= 293) {
-  result = parseInt(spinCode) * 4; // x5
-} else if (random <= 297) {
-  result = parseInt(spinCode) * 9; // x10
-} else if (random <= 299) {
-  result = parseInt(spinCode) * 19; // x20
-} else {
-  result = parseInt(spinCode) * 100; // x100 jackpot
-}
   const newBalance = playerData.balance + result;
   await updateDoc(playerRef, { balance: newBalance });
+
   const balanceEl = document.getElementById("balance");
   const currentDisplayed = parseInt(balanceEl.textContent) || 0;
   animateNumber(balanceEl, currentDisplayed, newBalance);
+
   const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
   saved.balance = newBalance;
   localStorage.setItem("playerdata", JSON.stringify(saved));
 
   if (result < 0) {
     document.getElementById("spinResult").innerHTML = `You <b>lost</b> $${-result}`;
-  } else if (result === parseInt(spinCode) * 100) {
-    document.getElementById("spinResult").innerHTML = `You <b>won</b> $${result}<br><b id="jackpot" style="">JACKPOT</b>`;
-    // Flash rainbow effect for JACKPOT
+  } else if (result === amount * 199) {
+    document.getElementById("spinResult").innerHTML = `You <b>won</b> $${result}<br><b id="jackpot">JACKPOT</b>`;
     const jackpotEl = document.getElementById("jackpot");
     let colors = ["yellow", "green", "blue", "indigo", "violet", "red", "orange"];
     let i = 0;
