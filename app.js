@@ -251,34 +251,33 @@ window.redeemCode = async function () {
   document.getElementById("redeemID").value = "";
 };
 
+import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 function startBalancePolling() {
   if (!currentUser) return;
 
   const playerRef = doc(db, "playerdata", currentUser);
 
-  setInterval(async () => {
-    try {
-      const snap = await getDoc(playerRef);
-      if (snap.exists()) {
-        const newBalance = snap.data().balance;
+  onSnapshot(playerRef, (snap) => {
+    if (!snap.exists()) return;
 
-        // Update UI if changed
-        const localData = JSON.parse(localStorage.getItem("playerdata")) || {};
-        if (localData.balance !== newBalance) {
-          const balanceEl = document.getElementById("balance");
-          const currentDisplayed = parseInt(balanceEl.textContent) || 0;
-          animateNumber(balanceEl, currentDisplayed, newBalance);
+    const newBalance = snap.data().balance;
+    const localData = JSON.parse(localStorage.getItem("playerdata")) || {};
 
-          localData.balance = newBalance;
-          localStorage.setItem("playerdata", JSON.stringify(localData));
-          console.log("[Poll] Balance updated to:", newBalance);
-        }
-      }
-    } catch (err) {
-      console.error("Polling error:", err);
+    if (localData.balance !== newBalance) {
+      const balanceEl = document.getElementById("balance");
+      const currentDisplayed = parseInt(balanceEl.textContent) || 0;
+      animateNumber(balanceEl, currentDisplayed, newBalance);
+
+      localData.balance = newBalance;
+      localStorage.setItem("playerdata", JSON.stringify(localData));
+      console.log("[Snapshot] Balance updated to:", newBalance);
     }
-  }, 5000);
+  }, (error) => {
+    console.error("Snapshot listener error:", error);
+  });
 }
+
 
 function animateNumber(element, start, end, duration = 500) {
   const startTimestamp = performance.now();
@@ -388,34 +387,27 @@ window.spin = async function () {
 };
 
 
-const serverRef = doc(db, "server", "status");
 
+const serverRef = doc(db, "server", "status");
 let alerted = false;
 
-async function checkServerStatus() {
-  if (!window.location.pathname.includes("beta")) {
-    try {
-      const snap = await getDoc(serverRef);
-      if (!snap.exists()) return;
+if (!window.location.pathname.includes("beta")) {
+  onSnapshot(serverRef, (snap) => {
+    if (!snap.exists()) return;
 
-      const stopped = snap.data().stopped;
+    const stopped = snap.data().stopped;
 
-      if (stopped === true && !alerted) {
-        alerted = true;
-        alert("Server restarting");
-        window.location.href = "restart.html";
-      }
-    } catch (err) {
-      console.error("Error checking server status:", err);
+    if (stopped === true && !alerted) {
+      alerted = true;
+      alert("Server restarting");
+      window.location.href = "restart.html";
     }
-  }
+  }, (err) => {
+    console.error("Error watching server status:", err);
+  });
 }
-
-// Check immediately, then every 5 seconds
-checkServerStatus();
-setInterval(checkServerStatus, 5000);
-
 
 window.signupoptions = function () {
   signUp();
 }
+
