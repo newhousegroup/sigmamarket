@@ -337,8 +337,8 @@ window.spin = async function () {
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
 
-    if (random <= 120) {
-      result = -spinval * (Math.random()*3);
+    if (random <= 140) {
+      result = -spinval * (Math.random()*0.5 +0.5);
     } else if (random <= 220) {
       result = amount * (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
@@ -439,3 +439,53 @@ document.getElementById("spinCode").addEventListener("input", updateMaxReward);
 
 // Optionally, run once on page load in case spinCode already has value
 updateMaxReward();
+
+// Replace with actual username
+window.openLootbox = async function () {
+  if (!currentUser) {
+    alert("You must be logged in to open lootboxes.");
+    return;
+  }
+
+  const userRef = doc(db, "inventory", currentUser);
+  const userSnap = await getDoc(userRef);
+
+  // If no inventory document, create it with empty inv and some lootboxes
+  if (!userSnap.exists()) {
+    await setDoc(userRef, {
+      playerinv: [0, 0, 0, 0, 0], // 5 item slots initialized to 0 count
+      playerboxes: [1, 0], // 1 normal lootbox, 0 premium lootbox by default
+    });
+    alert("Inventory created. Please try opening a lootbox again.");
+    return;
+  }
+
+  const data = userSnap.data();
+  const boxes = data.playerboxes || [0, 0];
+  const inv = data.playerinv || [0, 0, 0, 0, 0];
+
+  if (boxes[0] <= 0) {
+    alert("No normal lootboxes left!");
+    return;
+  }
+
+  // Remove one normal lootbox
+  boxes[0]--;
+
+  // Pick a random item ID 0-4
+  const itemId = Math.floor(Math.random() * 5);
+
+  // Make sure inventory array is long enough
+  while (inv.length <= itemId) inv.push(0);
+
+  // Increment count of that item
+  inv[itemId]++;
+
+  // Update Firestore
+  await updateDoc(userRef, {
+    playerboxes: boxes,
+    playerinv: inv,
+  });
+
+  alert(`You received Item ${itemId}!`);
+}

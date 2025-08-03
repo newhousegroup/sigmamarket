@@ -439,3 +439,4 @@ document.getElementById("spinCode").addEventListener("input", updateMaxReward);
 
 // Optionally, run once on page load in case spinCode already has value
 updateMaxReward();
+
