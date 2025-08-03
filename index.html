@@ -11,8 +11,8 @@
   <meta property="og:title" content="Sigma Market">
   <meta name="author" content="Made by Newhouse">
   <meta property="og:locale" content="en_US">
-  <meta name="description" content="Play the multiplayer economy game.">
-  <meta property="og:description" content="Play the multiplayer economy game.">
+  <meta name="description" content="Play the multiplayer economy game using username + PIN.">
+  <meta property="og:description" content="Play the multiplayer economy game using username + PIN.">
   <link rel="canonical" href="http://newhs.cc/sigmamarket/beta/">
   <meta property="og:url" content="http://newhs.cc/sigmamarket/beta/">
   <meta property="og:site_name" content="Sigma Market">
@@ -76,7 +76,7 @@
             <input type="text" id="username" placeholder="Username" style="width:100%"><br>
             <input type="password" id="pin" placeholder="PIN" style="width:100%"><br>
             <button onclick="login()" style="width:100%;"><b>Login</b></button><br><br>
-            <button onclick="signupoptions()" style="width:100%;">New player</button>
+            <button onclick="betasignup()" style="width:100%;">New player</button>
             <br><br>
             <p style="font-size:12px;">The system is currently in beta testing phase. There may be bugs. Please report them to the developer.</p>
           </div>
@@ -102,6 +102,7 @@
               <div style="display: flex; flex-direction: column;">
                 <p style="font-size:28px; font-weight:200;">Lucky Spin</p>
                 <input type="tel" id="spinCode" style="font-size:24px; text-align:center;" placeholder="Enter Amount">
+                <p>Maximum reward: <b id="maxReward"></b></p>
                 <button id="spin" style="font-size:24px; border-radius: 8px;" onclick="spin()">Spin</button>
                 <p id="spinResult" style="font-size:24px; font-weight:400; margin-top:10px;"></p>
               </div>

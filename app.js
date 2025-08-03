@@ -305,7 +305,8 @@ window.spin = async function () {
       return;
     }
 
-    const amount = parseInt(spinCode);
+    const spinval = parseInt(spinCode);
+    const amount = Math.log2(spinval + 1) * Math.sqrt(spinval);
     const playerRef = doc(db, "playerdata", currentUser);
     const playerSnap = await getDoc(playerRef);
 
@@ -337,20 +338,20 @@ window.spin = async function () {
     let result = 0;
 
     if (random <= 120) {
-      result = -amount;             // x0
-    } else if (random <= 200) {
-      result = amount * 1;          // x2
+      result = -spinval * (Math.random()*3);
     } else if (random <= 220) {
-      result = amount * 2;          // x3
-    } else if (random <= 231) {
+      result = amount * (Math.random() * 3 + 2);          // x3
+    /*} else if (random <= 231) {
       result = amount * 4;          // x5
-    } else if (random <= 236) {
+   */ } else if (random <= 236) {
       result = amount * 9;          // x10
     } else if (random <= 239) {
       result = amount * 24;         // x25
     } else {
       result = amount * 200;        // Jackpot
     }
+
+    result = Math.floor(result);
 
     const newBalance = playerData.balance + result;
     await updateDoc(playerRef, { balance: newBalance });
@@ -411,3 +412,30 @@ window.signupoptions = function () {
   signUp();
 }
 
+function formatNumber(num) {
+  if (num >= 1e12) return (num/1e12).toFixed(1).replace(/\.0$/, "") + "T"; 
+  if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
+  if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
+  return num.toString();
+}
+
+function updateMaxReward() {
+  const inputEl = document.getElementById("spinCode");
+  const outputEl = document.getElementById("maxReward");
+  const val = Number(inputEl.value);
+
+  if (isNaN(val) || val <= 0) {
+    outputEl.textContent = "";
+    return;
+  }
+
+  const reward = Math.min(Math.floor(200 * Math.log2(val + 1) * Math.sqrt(val)), 1e9);
+  outputEl.textContent = "$" + formatNumber(reward);
+}
+
+// Attach event listener for live update
+document.getElementById("spinCode").addEventListener("input", updateMaxReward);
+
+// Optionally, run once on page load in case spinCode already has value
+updateMaxReward();

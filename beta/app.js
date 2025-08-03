@@ -251,34 +251,33 @@ window.redeemCode = async function () {
   document.getElementById("redeemID").value = "";
 };
 
+import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 function startBalancePolling() {
   if (!currentUser) return;
 
   const playerRef = doc(db, "playerdata", currentUser);
 
-  setInterval(async () => {
-    try {
-      const snap = await getDoc(playerRef);
-      if (snap.exists()) {
-        const newBalance = snap.data().balance;
+  onSnapshot(playerRef, (snap) => {
+    if (!snap.exists()) return;
 
-        // Update UI if changed
-        const localData = JSON.parse(localStorage.getItem("playerdata")) || {};
-        if (localData.balance !== newBalance) {
-          const balanceEl = document.getElementById("balance");
-          const currentDisplayed = parseInt(balanceEl.textContent) || 0;
-          animateNumber(balanceEl, currentDisplayed, newBalance);
+    const newBalance = snap.data().balance;
+    const localData = JSON.parse(localStorage.getItem("playerdata")) || {};
 
-          localData.balance = newBalance;
-          localStorage.setItem("playerdata", JSON.stringify(localData));
-          console.log("[Poll] Balance updated to:", newBalance);
-        }
-      }
-    } catch (err) {
-      console.error("Polling error:", err);
+    if (localData.balance !== newBalance) {
+      const balanceEl = document.getElementById("balance");
+      const currentDisplayed = parseInt(balanceEl.textContent) || 0;
+      animateNumber(balanceEl, currentDisplayed, newBalance);
+
+      localData.balance = newBalance;
+      localStorage.setItem("playerdata", JSON.stringify(localData));
+      console.log("[Snapshot] Balance updated to:", newBalance);
     }
-  }, 5000);
+  }, (error) => {
+    console.error("Snapshot listener error:", error);
+  });
 }
+
 
 function animateNumber(element, start, end, duration = 500) {
   const startTimestamp = performance.now();
@@ -299,62 +298,60 @@ window.spin = async function () {
   const spinBtn = document.getElementById("spin");
   spinBtn.disabled = true;
 
-  const spinCode = document.getElementById("spinCode").value.trim();
-  if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
-    alert("Please enter a valid amount to spin.");
-    spinBtn.disabled = false;
-    return;
-  }
-
-  const amount = parseInt(spinCode);
-  const playerRef = doc(db, "playerdata", currentUser);
-  const playerSnap = await getDoc(playerRef);
-
-  if (!playerSnap.exists()) {
-    alert("Player data not found. Please log in again.");
-    spinBtn.disabled = false;
-    return;
-  }
-
-  const playerData = playerSnap.data();
-  if (amount > playerData.balance) {
-    alert("You don't have enough balance to spin that amount.");
-    spinBtn.disabled = false;
-    return;
-  }
-
-  const spinResultEl = document.getElementById("spinResult");
-  spinResultEl.innerHTML = "Spinning";
-  let dots = "";
-  const spinInterval = setInterval(() => {
-    dots = dots.length < 3 ? dots + "." : "";
-    spinResultEl.innerHTML = `Spinning${dots}`;
-  }, 300);
-
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  clearInterval(spinInterval);
-  spinResultEl.innerHTML = "Please wait";
-  await new Promise(resolve => setTimeout(resolve, 200));
-
   try {
+    const spinCode = document.getElementById("spinCode").value.trim();
+    if (!spinCode || isNaN(spinCode) || parseInt(spinCode) <= 0) {
+      alert("Please enter a valid amount to spin.");
+      return;
+    }
+
+    const spinval = parseInt(spinCode);
+    const amount = Math.log2(spinval + 1) * Math.sqrt(spinval);
+    const playerRef = doc(db, "playerdata", currentUser);
+    const playerSnap = await getDoc(playerRef);
+
+    if (!playerSnap.exists()) {
+      alert("Player data not found. Please log in again.");
+      return;
+    }
+
+    const playerData = playerSnap.data();
+    if (amount > playerData.balance) {
+      alert("You don't have enough balance to spin that amount.");
+      return;
+    }
+
+    const spinResultEl = document.getElementById("spinResult");
+    spinResultEl.innerHTML = "Spinning";
+    let dots = "";
+    const spinInterval = setInterval(() => {
+      dots = dots.length < 3 ? dots + "." : "";
+      spinResultEl.innerHTML = `Spinning${dots}`;
+    }, 300);
+
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    clearInterval(spinInterval);
+    spinResultEl.innerHTML = "Please wait";
+    await new Promise(resolve => setTimeout(resolve, 200));
+
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
 
-    if (random <= 144) {
-      result = -amount;             // x0
-    } else if (random <= 224) {
-      result = amount * 2;          // x2
-    } else if (random <= 244) {
-      result = amount * 3;          // x3
-    } else if (random <= 255) {
-      result = amount * 5;          // x5
-    } else if (random <= 258) {
-      result = amount * 10;         // x10
-    } else if (random <= 260) {
-      result = amount * 25;         // x25
+    if (random <= 120) {
+      result = -spinval * (Math.random()*3);
+    } else if (random <= 220) {
+      result = amount * (Math.random() * 3 + 2);          // x3
+    /*} else if (random <= 231) {
+      result = amount * 4;          // x5
+   */ } else if (random <= 236) {
+      result = amount * 9;          // x10
+    } else if (random <= 239) {
+      result = amount * 24;         // x25
     } else {
-      result = amount * 200;        // jackpot
+      result = amount * 200;        // Jackpot
     }
+
+    result = Math.floor(result);
 
     const newBalance = playerData.balance + result;
     await updateDoc(playerRef, { balance: newBalance });
@@ -385,44 +382,60 @@ window.spin = async function () {
     } else {
       spinResultEl.innerHTML = `You <b>won</b> $${result}`;
     }
-
-  } catch (err) {
-    alert("Error: " + err.message);
-    console.error(err);
-    spinResultEl.innerHTML = "Something went wrong.";
+  } finally {
+    spinBtn.disabled = false; // Always re-enable, even on error or early return
   }
+};
 
-  spinBtn.disabled = false;
-}
+
 
 const serverRef = doc(db, "server", "status");
-
 let alerted = false;
 
-async function checkServerStatus() {
-  if (!window.location.pathname.includes("beta")) {
-    try {
-      const snap = await getDoc(serverRef);
-      if (!snap.exists()) return;
+if (!window.location.pathname.includes("beta")) {
+  onSnapshot(serverRef, (snap) => {
+    if (!snap.exists()) return;
 
-      const stopped = snap.data().stopped;
+    const stopped = snap.data().stopped;
 
-      if (stopped === true && !alerted) {
-        alerted = true;
-        alert("Server restarting");
-        window.location.href = "restart.html";
-      }
-    } catch (err) {
-      console.error("Error checking server status:", err);
+    if (stopped === true && !alerted) {
+      alerted = true;
+      alert("Server restarting");
+      window.location.href = "restart.html";
     }
-  }
+  }, (err) => {
+    console.error("Error watching server status:", err);
+  });
 }
-
-// Check immediately, then every 5 seconds
-checkServerStatus();
-setInterval(checkServerStatus, 5000);
-
 
 window.signupoptions = function () {
   signUp();
 }
+
+function formatNumber(num) {
+  if (num >= 1e12) return (num/1e12).toFixed(1).replace(/\.0$/, "") + "T"; 
+  if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
+  if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
+  return num.toString();
+}
+
+function updateMaxReward() {
+  const inputEl = document.getElementById("spinCode");
+  const outputEl = document.getElementById("maxReward");
+  const val = Number(inputEl.value);
+
+  if (isNaN(val) || val <= 0) {
+    outputEl.textContent = "";
+    return;
+  }
+
+  const reward = Math.min(Math.floor(200 * Math.log2(val + 1) * Math.sqrt(val)), 1e9);
+  outputEl.textContent = "$" + formatNumber(reward);
+}
+
+// Attach event listener for live update
+document.getElementById("spinCode").addEventListener("input", updateMaxReward);
+
+// Optionally, run once on page load in case spinCode already has value
+updateMaxReward();
