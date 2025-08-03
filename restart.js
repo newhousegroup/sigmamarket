@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -25,33 +25,30 @@ const dotsInterval = setInterval(() => {
   headingEl.textContent = "Server restarting" + ".".repeat(dots);
 }, 500);
 
-// Track the interval so we can stop it
-const statusCheckInterval = setInterval(checkServerStatus, 1000);
+// Listen to server status
+const statusRef = doc(db, "server", "status");
 
-async function checkServerStatus() {
-  try {
-    const statusDoc = await getDoc(doc(db, "server", "status"));
-    if (statusDoc.exists()) {
-      const data = statusDoc.data();
+const unsubscribe = onSnapshot(statusRef, (statusDoc) => {
+  if (statusDoc.exists()) {
+    const data = statusDoc.data();
 
-      // Update admin note
-      if (data.note !== undefined) {
-        noteEl.textContent = "Admin note: " + data.note;
-      }
-
-      // If server is back online
-      if (data.stopped === false) {
-        reconnect();
-      }
+    // Update admin note
+    if (data.note !== undefined) {
+      noteEl.textContent = "Admin note: " + data.note;
     }
-  } catch (error) {
-    console.error("Error checking server status:", error);
+
+    // If server is back online
+    if (data.stopped === false) {
+      reconnect();
+    }
   }
-}
+}, (error) => {
+  console.error("Error listening to server status:", error);
+});
 
 function reconnect() {
-  clearInterval(statusCheckInterval);
   clearInterval(dotsInterval);
+  unsubscribe(); // Stop listening for changes
   headingEl.textContent = "Reconnecting...";
   setTimeout(() => {
     window.location.href = "index.html";
