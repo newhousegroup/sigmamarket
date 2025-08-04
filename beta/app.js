@@ -491,7 +491,7 @@ window.openLootbox = async function () {
 }
 
 // Fetch and display leaderboard
-async function loadLeaderboard() {
+window.loadLeaderboard = async function () {
   const list = document.getElementById("leaderboard");
   list.innerHTML = "Loading...";
 
