@@ -489,3 +489,30 @@ window.openLootbox = async function () {
 
   alert(`You received Item ${itemId}!`);
 }
+
+// Fetch and display leaderboard
+async function loadLeaderboard() {
+  const list = document.getElementById("leaderboard");
+  list.innerHTML = "Loading...";
+
+  const snapshot = await getDocs(collection(db, "playerdata"));
+
+  const data = [];
+  snapshot.forEach(doc => {
+    const { balance } = doc.data();
+    data.push({ name: doc.id, balance: balance || 0 });
+  });
+
+  // Sort by balance descending
+  data.sort((a, b) => b.balance - a.balance);
+
+  // Render top 10
+  list.innerHTML = "";
+  data.slice(0, 10).forEach((entry, index) => {
+    const li = document.createElement("li");
+    li.textContent = `${index + 1}. ${entry.name} — $${entry.balance.toLocaleString()}`;
+    list.appendChild(li);
+  });
+}
+
+loadLeaderboard();
