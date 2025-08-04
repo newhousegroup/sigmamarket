@@ -808,6 +808,6 @@ window.workerMenu = async function () {
     free.style.display = 'none';
     cf.style.display = 'block';
     menu.style.display = 'block';
-    text.innerHTML = `Select a player with a net worth less than $10 to become your worker.`;
+    text.innerHTML = `Select a player with a net worth less than $20 to become your worker. Workers have 40% of their earnings given to their master.`;
   }
 }
