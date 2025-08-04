@@ -3,7 +3,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
-  getFirestore, collection, doc, getDoc, setDoc, updateDoc, runTransaction, query, onSnapshot
+  getFirestore, collection, doc, getDoc, setDoc, updateDoc, runTransaction, query, onSnapshot, serverTimestamp, deleteDoc, getDocs, increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -28,6 +28,8 @@ window.onload = () => {
     currentUser = player.username;
     showGameUI(player.username, player.balance);
     startBalancePolling();
+    watchSlaveStatus();
+    workerMenu();
   } else {
     document.getElementById("logintext").style.display = "none";
   }
@@ -61,6 +63,8 @@ window.login = async function () {
     currentUser = username;
     saveAndShow(username, pin, data.balance);
     startBalancePolling();
+    watchSlaveStatus();
+    workerMenu();
   } else {
     alert("Wrong PIN");
   }
@@ -146,18 +150,24 @@ window.prelogout = function () {
   if (confirm("Are you sure you want to log out?")) logout();
 };
 
+function usernameTest(s) {
+  return /^[a-z0-9]+$/g.test(s);
+}
+
 window.signUp = async function () {
   const username = prompt("Enter a username:")?.trim().toLowerCase();
   if (!username) {
     alert("Signup canceled.");
     return;
-  } if (username.includes(" ")) {
-    alert("Username cannot contain spaces");
+  }
+  if (!usernameTest(username) || username === "none") {
+    alert("Invalid username.");
+    return;
   }
 
   const pin = prompt("Enter a 4-digit PIN:")?.trim();
   if (!pin || pin.length !== 4 || isNaN(pin)) {
-    alert("Invalid PIN. Signup canceled.");
+    alert("Invalid PIN.");
     return;
   }
 
@@ -169,12 +179,14 @@ window.signUp = async function () {
     return;
   }
 
-  const startingBalance = 0;
+  const startingBalance = 100;
   await setDoc(userRef, { pin, balance: startingBalance });
   currentUser = username;
   saveAndShow(username, pin, startingBalance);
   alert("Welcome to Sigma Market Online!");
   startBalancePolling();
+  watchSlaveStatus();
+  workerMenu();
 };
 
 window.redeemCode = async function () {
@@ -258,13 +270,23 @@ function startBalancePolling() {
   if (!currentUser) return;
 
   const playerRef = doc(db, "playerdata", currentUser);
+  const workerRef = doc(db, "workers", currentUser);
 
-  onSnapshot(playerRef, (snap) => {
+  let lastBalance = null;
+
+  onSnapshot(playerRef, async (snap) => {
     if (!snap.exists()) return;
 
     const newBalance = snap.data().balance;
     const localData = JSON.parse(localStorage.getItem("playerdata")) || {};
 
+    if (lastBalance === null) {
+      lastBalance = newBalance;
+    }
+
+    const diff = newBalance - lastBalance;
+
+    // Visuals
     if (localData.balance !== newBalance) {
       const balanceEl = document.getElementById("balance");
       const currentDisplayed = parseInt(balanceEl.textContent) || 0;
@@ -274,11 +296,43 @@ function startBalancePolling() {
       localStorage.setItem("playerdata", JSON.stringify(localData));
       console.log("[Snapshot] Balance updated to:", newBalance);
     }
+
+    // Master cut logic
+    const workerSnap = await getDoc(workerRef);
+    if (workerSnap.exists()) {
+      const data = workerSnap.data();
+      console.log("[Worker Info]", data);
+
+      if (data.slave === true && data.master && diff > 0) {
+        const masterRef = doc(db, "playerdata", data.master);
+
+        await runTransaction(db, async (transaction) => {
+          const masterSnap = await transaction.get(masterRef);
+          const slaveSnap = await transaction.get(playerRef);
+
+          if (!masterSnap.exists() || !slaveSnap.exists()) return;
+
+          const masterCut = Math.floor(diff * 0.4);
+          const newSlaveBalance = slaveSnap.data().balance - masterCut;
+
+          transaction.update(masterRef, {
+            balance: increment(masterCut)
+          });
+
+          transaction.update(playerRef, {
+            balance: newSlaveBalance
+          });
+
+          console.log(`[Master Cut] ${data.master} earned $${masterCut}`);
+        });
+      }
+    }
+
+    lastBalance = newBalance;
   }, (error) => {
     console.error("Snapshot listener error:", error);
   });
 }
-
 
 function animateNumber(element, start, end, duration = 500) {
   const startTimestamp = performance.now();
@@ -339,7 +393,7 @@ window.spin = async function () {
     let result = 0;
 
     if (random <= 140) {
-      result = -spinval * (Math.random()*0.5 +0.5);
+      result = -spinval * (Math.random() * 0.5 + 0.5);
     } else if (random <= 220) {
       result = amount * (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
@@ -414,7 +468,7 @@ window.signupoptions = function () {
 }
 
 function formatNumber(num) {
-  if (num >= 1e12) return (num/1e12).toFixed(1).replace(/\.0$/, "") + "T"; 
+  if (num >= 1e12) return (num / 1e12).toFixed(1).replace(/\.0$/, "") + "T";
   if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
   if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
   if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
@@ -521,14 +575,14 @@ window.loadLeaderboard = function () {
 
     // Top 5
     players.slice(0, 5).forEach((p, i) => {
-      output += `<div>#${i + 1}: ${p.username} - $${p.balance.toLocaleString()}</div>`;
+      output += `<div>#${i + 1}: ${p.username} - $${formatNumber(p.balance)}</div>`;
     });
 
     // Show current user if not in top 5
     const currentIndex = players.findIndex(p => p.username === currentUser);
     if (currentIndex >= 5) {
       const p = players[currentIndex];
-      output += `<hr style="margin:8px 0;"><div>#${currentIndex + 1}: ${p.username} - $${p.balance.toLocaleString()}</div>`;
+      output += `<hr style="margin:8px 0;"><div><b>#${currentIndex + 1}: ${p.username} - $${formatNumber(p.balance)}</b></div>`;
     }
 
     leaderboardEl.innerHTML = output || "<p>No players found.</p>";
@@ -539,3 +593,221 @@ window.loadLeaderboard = function () {
 };
 
 loadLeaderboard();
+
+window.enslave = async function (slaveUsername, masterUsername) {
+  const slaveRef = doc(db, "workers", slaveUsername);
+  const masterRef = doc(db, "workers", masterUsername);
+
+  const slaveSnap = await getDoc(slaveRef);
+  const masterSnap = await getDoc(masterRef);
+
+  // Check if master already owns a slave
+  if (masterSnap.exists()) {
+    const masterData = masterSnap.data();
+    if (masterData.owns && masterData.owns !== "") {
+      alert(`Master ${masterUsername} already owns a worker: ${masterData.owns}`);
+      return;
+    }
+  }
+
+  if (masterSnap.exists() && masterSnap.data().slave === true) {
+    alert("You are already a worker.");
+    return;
+  }
+
+  // Update slave doc
+  await setDoc(slaveRef, {
+    slave: true,
+    master: masterUsername,
+    owns: null,
+    joined: serverTimestamp(),
+    lastpay: serverTimestamp(),
+  }, { merge: true });
+
+  // Create or update master doc
+  if (!masterSnap.exists()) {
+    await setDoc(masterRef, {
+      slave: false,
+      master: null,
+      owns: slaveUsername,
+      joined: null,
+      lastpay: null
+    });
+  } else {
+    await updateDoc(masterRef, {
+      owns: slaveUsername,
+      slave: false,
+      master: null,
+      joined: null,
+      lastpay: null
+    });
+  }
+
+  alert(`${slaveUsername} is now a worker of ${masterUsername}`);
+  workerMenu();
+}
+
+window.freeSlave = async function (slaveUsername) {
+  const slaveRef = doc(db, "workers", slaveUsername);
+  const slaveSnap = await getDoc(slaveRef);
+  if (!slaveSnap.exists()) {
+    alert("Error 1");
+    return;
+  }
+
+  const data = slaveSnap.data();
+  const masterUsername = data.master;
+  if (!masterUsername) {
+    alert("Error 2");
+    return;
+  }
+
+  const masterRef = doc(db, "workers", masterUsername);
+  const masterSnap = await getDoc(masterRef);
+
+  // Clear master's owns field if it equals this slave
+  if (masterSnap.exists()) {
+    const owns = masterSnap.data().owns || "";
+    if (owns === slaveUsername) {
+      await updateDoc(masterRef, { owns: "" });
+    }
+  }
+
+  // Update slave doc to escaped state
+  await updateDoc(slaveRef, {
+    slave: false,
+    master: null,
+    owns: "",
+    lastpay: serverTimestamp()
+  });
+
+  alert(`${slaveUsername} has been freed from ${masterUsername}`);
+  workerMenu();
+}
+
+window.resetTest = async function () {
+  const workersCol = collection(db, "workers");
+  const snapshot = await getDocs(workersCol);
+
+  const deletePromises = snapshot.docs.map((document) => {
+    return deleteDoc(doc(db, "workers", document.id));
+  });
+
+  await Promise.all(deletePromises);
+  alert("Cleared workerdata")
+}
+
+window.updatebankrupt = async function () {
+  const dropdown = document.getElementById("bankrupt");
+
+  const snapshot = await getDocs(collection(db, "playerdata"));
+  let count = 0;
+
+  const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
+
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if ((data.balance || 0) <= 20 && doc.id!==currentUser && !excludedUsers.includes(doc.id)) {
+      const option = document.createElement("option");
+      option.value = doc.id;
+      option.textContent = `${doc.id} ($${data.balance})`;
+      dropdown.appendChild(option);
+      count++;
+    }
+  });
+
+  if (count === 0) {
+    const option = document.createElement("option");
+    option.textContent = "No bankrupt players";
+    option.disabled = true;
+    dropdown.appendChild(option);
+  }
+}
+
+updatebankrupt();
+
+window.enslaveSelected = function () {
+  const selected = document.getElementById("bankrupt").value;
+  if (selected === "Choose a player") {
+    alert("Please choose a player to take as a worker.");
+    return;
+  }
+  if (confirm(`Do you want to take ${selected} as your worker?`)) {
+    enslave(selected, currentUser);
+  }
+}
+
+window.watchSlaveStatus = async function (userId = currentUser) {
+  if (!userId) return;
+
+  const workerRef = doc(db, "workers", userId);
+
+  // Get previously known slave state from localStorage
+  const key = `slaveStatus_${userId}`;
+  let previouslySlave = localStorage.getItem(key) === "true";
+
+  onSnapshot(workerRef, (snap) => {
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const isNowSlave = data.slave === true;
+
+    // Trigger alert only if newly enslaved
+    if (isNowSlave && !previouslySlave) {
+      alert(`⚠️ You have been enslaved by another player.\nYou are now a worker of ${data.master}`);
+      workerMenu();
+    } else if (!isNowSlave && previouslySlave) {
+      alert("Congratulations, you have been freed by your master!");
+      workerMenu();
+    }
+
+    // Update both local variable and localStorage
+    previouslySlave = isNowSlave;
+    localStorage.setItem(key, isNowSlave ? "true" : "false");
+  });
+};
+
+window.freeSlaveConfirm = async function () {
+  const masterRef = doc(db, "workers", currentUser);
+  const masterSnap = await getDoc(masterRef);
+  const data = masterSnap.data();
+  const slaveName = data.owns;
+
+  if(confirm(`Confirm freeing your worker ${slaveName}?`)) {
+    freeSlave(slaveName);
+  }
+}
+
+window.workerMenu = async function () {
+  const text = document.getElementById("workerBar");
+  const menu = document.getElementById("bankrupt");
+  const cf = document.getElementById("enslaveBtn");
+  const free = document.getElementById("freeslaveBtn");
+
+  if (!currentUser) return;
+  const ref = doc(db, "workers", currentUser);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const isSlave = data.slave === true;
+  const isMaster = typeof data.owns === 'string' && data.owns.length > 0;
+
+  if(isMaster) {
+    free.style.display = 'block';
+    cf.style.display = 'none';
+    menu.style.display = 'none';
+    const slavenet = (await getDoc(doc(db, "playerdata", data.owns))).data().balance;
+    text.innerHTML = `You currently have <b>${data.owns}</b> as your worker. Your worker has a net worth of $${slavenet}.`;
+  } else if (isSlave) {
+    free.style.display = 'none';
+    cf.style.display = 'none';
+    menu.style.display = 'none';
+    text.innerHTML = `You are a worker of <b>${data.master}</b>. Workers have 40% of their earnings taken away to their master.`;
+  } else {
+    free.style.display = 'none';
+    cf.style.display = 'block';
+    menu.style.display = 'block';
+    text.innerHTML = `Select a player with a net worth less than $10 to become your worker.`;
+  }
+}

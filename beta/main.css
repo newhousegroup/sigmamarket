@@ -881,6 +881,12 @@ table td {
     background-color: #333333;
     color: #888888;
   }
+
+  select {
+    background-color: #333333;
+    color: #ffffff;
+    border:0;
+  }
 }
 
 .inknut-light {
@@ -923,4 +929,12 @@ table td {
   font-family: "Inknut Antiqua", serif;
   font-weight: 900;
   font-style: normal;
+}
+
+select {
+  font-size:18px;
+}
+
+option:disabled {
+  color: gray !important;
 }

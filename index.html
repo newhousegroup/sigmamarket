@@ -20,6 +20,7 @@
   <meta name="twitter:card" content="summary">
   <meta property="twitter:title" content="Sigma Market">
   <script type="application/ld+json">
+
   {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -33,6 +34,7 @@
   }
   </script>
   <link rel="stylesheet" href="main.css">
+
   <link type="application/atom+xml" rel="alternate" href="http://newhs.cc/sigmamarket/feed.xml" title="Sigma Market">
 </head>
 
@@ -109,8 +111,19 @@
               </div>
 
               <div style="display:flex; flex-direction:column;">
-                <p style="font-size:28px; font-weight:200; display:block !important;">Leaderboard</p>
+                <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Leaderboard</p>
                 <p id="leaderboard" style="white-space:nowrap;"></p>
+              </div>
+
+              <div style="display:flex; flex-direction:column;">
+                <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Worker</p>
+                <p style="font-size:18px;" id="workerBar">Select a player with a net worth less than $20 to become your worker.</p>
+                <select id="bankrupt">
+                  <option disabled selected>Choose a player</option>
+                </select><br>
+                <button id="enslaveBtn" style="font-size:24px; border-radius: 8px;" onclick="enslaveSelected();">Confirm</button>
+                <button id="freeslaveBtn" style="font-size:24px; border-radius: 8px;" onclick="freeSlaveConfirm();">Free worker</button>
+
               </div>
 
             </div>
