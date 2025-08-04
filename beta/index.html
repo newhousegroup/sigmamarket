@@ -76,7 +76,7 @@
             <input type="text" id="username" placeholder="Username" style="width:100%"><br>
             <input type="password" id="pin" placeholder="PIN" style="width:100%"><br>
             <button onclick="login()" style="width:100%;"><b>Login</b></button><br><br>
-            <button onclick="betasignup()" style="width:100%;">New player</button>
+            <button onclick="signUp()" style="width:100%;">New player</button>
             <br><br>
             <p style="font-size:12px;">The system is currently in beta testing phase. There may be bugs. Please report
               them to the developer.</p>
@@ -108,17 +108,9 @@
                 <p id="spinResult" style="font-size:24px; font-weight:400; margin-top:10px;"></p>
               </div>
 
-              <div style="display: flex; flex-direction: column; width:40%;">
-                <p style="font-size:28px; font-weight:200">Inventory</p>
-                <button id="spin"
-                  style="font-size:24px; border-radius: 8px; background-color:#00ad0c !important; color:#fff !important;"
-                  onclick="openLootbox()">Test Lootbox</button><br>
-                <p><b>Item 1</b>: 0 Items</p>
-              </div>
-
-              <div style="display:flex; flex-direction:column; width:40%">
-                <p style="font-size:28px; font-weight:200">Leaderboard</p>
-                <ul id="leaderboard"></ul>
+              <div style="display:flex; flex-direction:column;">
+                <p style="font-size:28px; font-weight:200; display:block !important;">Leaderboard</p>
+                <p id="leaderboard" style="white-space:nowrap;"></p>
               </div>
 
             </div>

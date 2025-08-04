@@ -150,6 +150,8 @@ window.signUp = async function () {
   if (!username) {
     alert("Signup canceled.");
     return;
+  } if (username.includes(" ")) {
+    alert("Username cannot contain spaces");
   }
 
   const pin = prompt("Enter a 4-digit PIN:")?.trim();
@@ -316,7 +318,7 @@ window.spin = async function () {
     }
 
     const playerData = playerSnap.data();
-    if (amount > playerData.balance) {
+    if (spinval > playerData.balance) {
       alert("You don't have enough balance to spin that amount.");
       return;
     }
@@ -495,7 +497,7 @@ window.loadLeaderboard = async function () {
   const leaderboardEl = document.getElementById("leaderboard");
   leaderboardEl.innerHTML = "Loading...";
 
-  const excludedUsers = ["admin", "testplayer1", "testplayer2", "testplayer3", "testplayer4"];
+  const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
 
   try {
     const querySnapshot = await getDocs(collection(db, "playerdata"));

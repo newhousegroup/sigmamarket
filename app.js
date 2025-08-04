@@ -316,7 +316,7 @@ window.spin = async function () {
     }
 
     const playerData = playerSnap.data();
-    if (amount > playerData.balance) {
+    if (spinval > playerData.balance) {
       alert("You don't have enough balance to spin that amount.");
       return;
     }
