@@ -69,6 +69,7 @@ window.login = async function () {
 function saveAndShow(username, pin, balance) {
   localStorage.setItem("playerdata", JSON.stringify({ username, pin, balance }));
   showGameUI(username, balance);
+  loadLeaderboard();
 }
 
 function showGameUI(username, balance) {
@@ -443,7 +444,7 @@ document.getElementById("spinCode").addEventListener("input", updateMaxReward);
 // Optionally, run once on page load in case spinCode already has value
 updateMaxReward();
 
-window.loadLeaderboard = async function () {
+window.loadLeaderboard = function () {
   const leaderboardEl = document.getElementById("leaderboard");
   leaderboardEl.innerHTML = "Loading...";
 
@@ -461,7 +462,7 @@ window.loadLeaderboard = async function () {
       if (!excludedUsers.includes(username)) {
         players.push({
           username,
-          balance: data.balance || 0
+          balance: data.balance || 0,
         });
       }
     });
@@ -469,13 +470,24 @@ window.loadLeaderboard = async function () {
     // Sort by balance descending
     players.sort((a, b) => b.balance - a.balance);
 
-    // Render leaderboard
-    leaderboardEl.innerHTML = players.map((p, i) =>
-      `<div>#${i + 1}: ${p.username} - $${p.balance}</div>`
-    ).join("");
+    let output = "";
+
+    // Top 5
+    players.slice(0, 5).forEach((p, i) => {
+      output += `<div>#${i + 1}: ${p.username} - $${p.balance.toLocaleString()}</div>`;
+    });
+
+    // Show current user if not in top 5
+    const currentIndex = players.findIndex(p => p.username === currentUser);
+    if (currentIndex >= 5) {
+      const p = players[currentIndex];
+      output += `<hr style="margin:8px 0;"><div>#${currentIndex + 1}: ${p.username} - $${p.balance.toLocaleString()}</div>`;
+    }
+
+    leaderboardEl.innerHTML = output || "<p>No players found.</p>";
   }, (error) => {
+    console.error("Error in onSnapshot:", error);
     leaderboardEl.innerHTML = "Error loading leaderboard.";
-    console.error("Snapshot error:", error);
   });
 };
 
