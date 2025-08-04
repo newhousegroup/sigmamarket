@@ -934,7 +934,3 @@ table td {
 select {
   font-size:18px;
 }
-
-option:disabled {
-  color: gray !important;
-}
