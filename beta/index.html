@@ -40,10 +40,10 @@
   <header class="site-header" role="banner">
     <div class="wrapper" style="display:flex; align-items:center; justify-content:space-between;">
       <p class="site-title" style="margin: 0; white-space:nowrap;">Sigma Market Online</p>
-        <p style="margin:0; padding:0; line-height:110%; text-align:right; flex:1;" id="logintext" onclick="prelogout();">
-          Logged in as: <b id="loggedin"></b>
-        </p>
-        
+      <p style="margin:0; padding:0; line-height:110%; text-align:right; flex:1;" id="logintext" onclick="prelogout();">
+        Logged in as: <b id="loggedin"></b>
+      </p>
+
     </div>
   </header>
 
@@ -78,7 +78,8 @@
             <button onclick="login()" style="width:100%;"><b>Login</b></button><br><br>
             <button onclick="betasignup()" style="width:100%;">New player</button>
             <br><br>
-            <p style="font-size:12px;">The system is currently in beta testing phase. There may be bugs. Please report them to the developer.</p>
+            <p style="font-size:12px;">The system is currently in beta testing phase. There may be bugs. Please report
+              them to the developer.</p>
           </div>
 
           <!-- Game UI -->
@@ -109,14 +110,17 @@
 
               <div style="display: flex; flex-direction: column; width:40%;">
                 <p style="font-size:28px; font-weight:200">Inventory</p>
-                <button id="spin" style="font-size:24px; border-radius: 8px; background-color:#00ad0c !important; color:#fff !important;" onclick="openLootbox()">Test Lootbox</button><br>
+                <button id="spin"
+                  style="font-size:24px; border-radius: 8px; background-color:#00ad0c !important; color:#fff !important;"
+                  onclick="openLootbox()">Test Lootbox</button><br>
                 <p><b>Item 1</b>: 0 Items</p>
               </div>
-            </div>
 
-            <div style="display:flex; flex-direction:column; width:40%">
-              <p style="font-size:28px; font-weight:200">Leaderboard</p>
-              <ul id="leaderboard"></ul>
+              <div style="display:flex; flex-direction:column; width:40%">
+                <p style="font-size:28px; font-weight:200">Leaderboard</p>
+                <ul id="leaderboard"></ul>
+              </div>
+
             </div>
 
           </div>

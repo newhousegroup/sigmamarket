@@ -492,27 +492,38 @@ window.openLootbox = async function () {
 
 // Fetch and display leaderboard
 window.loadLeaderboard = async function () {
-  const list = document.getElementById("leaderboard");
-  list.innerHTML = "Loading...";
+  const leaderboardEl = document.getElementById("leaderboard");
+  leaderboardEl.innerHTML = "Loading...";
 
-  const snapshot = await getDocs(collection(db, "playerdata"));
+  const excludedUsers = ["admin", "testplayer1", "testplayer2", "testplayer3", "testplayer4"];
 
-  const data = [];
-  snapshot.forEach(doc => {
-    const { balance } = doc.data();
-    data.push({ name: doc.id, balance: balance || 0 });
-  });
+  try {
+    const querySnapshot = await getDocs(collection(db, "playerdata"));
+    const players = [];
 
-  // Sort by balance descending
-  data.sort((a, b) => b.balance - a.balance);
+    querySnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const username = docSnap.id;
 
-  // Render top 10
-  list.innerHTML = "";
-  data.slice(0, 10).forEach((entry, index) => {
-    const li = document.createElement("li");
-    li.textContent = `${index + 1}. ${entry.name} — $${entry.balance.toLocaleString()}`;
-    list.appendChild(li);
-  });
+      if (!excludedUsers.includes(username)) {
+        players.push({
+          username,
+          balance: data.balance || 0
+        });
+      }
+    });
+
+    // Sort by balance descending
+    players.sort((a, b) => b.balance - a.balance);
+
+    // Render leaderboard
+    leaderboardEl.innerHTML = players.map((p, i) =>
+      `<div>#${i + 1}: ${p.username} - $${p.balance}</div>`
+    ).join("");
+  } catch (err) {
+    leaderboardEl.innerHTML = "Error loading leaderboard.";
+    console.error(err);
+  }
 }
 
 loadLeaderboard();

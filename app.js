@@ -440,3 +440,40 @@ document.getElementById("spinCode").addEventListener("input", updateMaxReward);
 // Optionally, run once on page load in case spinCode already has value
 updateMaxReward();
 
+
+window.loadLeaderboard = async function () {
+  const leaderboardEl = document.getElementById("leaderboard");
+  leaderboardEl.innerHTML = "Loading...";
+
+  const excludedUsers = ["admin", "testplayer1", "testplayer2", "testplayer3", "testplayer4"];
+
+  try {
+    const querySnapshot = await getDocs(collection(db, "playerdata"));
+    const players = [];
+
+    querySnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const username = docSnap.id;
+
+      if (!excludedUsers.includes(username)) {
+        players.push({
+          username,
+          balance: data.balance || 0
+        });
+      }
+    });
+
+    // Sort by balance descending
+    players.sort((a, b) => b.balance - a.balance);
+
+    // Render leaderboard
+    leaderboardEl.innerHTML = players.map((p, i) =>
+      `<div>#${i + 1}: ${p.username} - $${p.balance}</div>`
+    ).join("");
+  } catch (err) {
+    leaderboardEl.innerHTML = "Error loading leaderboard.";
+    console.error(err);
+  }
+}
+
+loadLeaderboard();
