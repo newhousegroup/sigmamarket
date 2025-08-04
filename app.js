@@ -3,7 +3,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
-  getFirestore, collection, doc, getDoc, setDoc, updateDoc, runTransaction, getDocs
+  getFirestore, collection, doc, getDoc, setDoc, updateDoc, runTransaction, query, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -251,7 +251,6 @@ window.redeemCode = async function () {
   document.getElementById("redeemID").value = "";
 };
 
-import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 function startBalancePolling() {
   if (!currentUser) return;
@@ -338,7 +337,7 @@ window.spin = async function () {
     let result = 0;
 
     if (random <= 140) {
-      result = -spinval * (Math.random()*0.5 +0.5);
+      result = -spinval * (Math.random() * 0.5 + 0.5);
     } else if (random <= 220) {
       result = amount * (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
@@ -413,7 +412,7 @@ window.signupoptions = function () {
 }
 
 function formatNumber(num) {
-  if (num >= 1e12) return (num/1e12).toFixed(1).replace(/\.0$/, "") + "T"; 
+  if (num >= 1e12) return (num / 1e12).toFixed(1).replace(/\.0$/, "") + "T";
   if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
   if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
   if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
@@ -440,18 +439,18 @@ document.getElementById("spinCode").addEventListener("input", updateMaxReward);
 // Optionally, run once on page load in case spinCode already has value
 updateMaxReward();
 
-
 window.loadLeaderboard = async function () {
   const leaderboardEl = document.getElementById("leaderboard");
   leaderboardEl.innerHTML = "Loading...";
 
-  const excludedUsers = ["admin", "testplayer1", "testplayer2", "testplayer3", "testplayer4"];
+  const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
 
-  try {
-    const querySnapshot = await getDocs(collection(db, "playerdata"));
+  const q = query(collection(db, "playerdata"));
+
+  onSnapshot(q, (querySnapshot) => {
     const players = [];
 
-    querySnapshot.forEach(docSnap => {
+    querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       const username = docSnap.id;
 
@@ -470,10 +469,10 @@ window.loadLeaderboard = async function () {
     leaderboardEl.innerHTML = players.map((p, i) =>
       `<div>#${i + 1}: ${p.username} - $${p.balance}</div>`
     ).join("");
-  } catch (err) {
+  }, (error) => {
     leaderboardEl.innerHTML = "Error loading leaderboard.";
-    console.error(err);
-  }
-}
+    console.error("Snapshot error:", error);
+  });
+};
 
 loadLeaderboard();
