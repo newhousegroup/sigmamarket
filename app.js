@@ -319,7 +319,7 @@ window.spin = async function () {
     if (spinval > playerData.balance) {
       alert("You don't have enough balance to spin that amount.");
       return;
-    } else if (spinval = playerData.balance) {
+    } else if (spinval === playerData.balance) {
       if(!confirm(`Warning: Don't spend your money all in one place! Do you REALLY want to put $${playerData.balance}, your ENTIRE NET WORTH, on the wheel?`)) {
         return;
       }
