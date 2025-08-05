@@ -4,5 +4,15 @@
     "location": "asia-southeast1",
     "rules": "firebase/firestore.rules",
     "indexes": "firebase/firestoreindex.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8192
+    },
+    "ui": {
+      "enabled": true,
+      "port": 8191
+    },
+    "singleProjectMode": true
   }
 }

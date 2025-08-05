@@ -6,14 +6,26 @@ import {
   getFirestore, collection, doc, getDoc, setDoc, updateDoc, runTransaction, query, onSnapshot, serverTimestamp, deleteDoc, getDocs, increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+/*const firebaseConfig = {
+  apiKey: "AIzaSyCwHW5QECsDz1NZkX84jVmFbaJRhDzI99I",
+  authDomain: "bcc-scoreboard.firebaseapp.com",
+  databaseURL: "https://bcc-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "bcc-scoreboard",
+  storageBucket: "bcc-scoreboard.firebasestorage.app",
+  messagingSenderId: "191718066818",
+  appId: "1:191718066818:web:7d640d812a3d3a2b77c29b",
+  measurementId: "G-E244D472RX"
+};*/
+
 const firebaseConfig = {
-  apiKey: "AIzaSyC0Ojzt2HxZzTwmUZsX9ZEZ31NiyNqo6B8",
-  authDomain: "sigma-market-app.firebaseapp.com",
-  projectId: "sigma-market-app",
-  storageBucket: "sigma-market-app.appspot.com",
-  messagingSenderId: "1042846633134",
-  appId: "1:1042846633134:web:ef61598314d0987ec6713f",
-  measurementId: "G-WG84HP2QDH"
+  apiKey: "AIzaSyCwHW5QECsDz1NZkX84jVmFbaJRhDzI99I",
+  authDomain: "bcc-scoreboard.firebaseapp.com",
+  databaseURL: "https://bcc-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "bcc-scoreboard",
+  storageBucket: "bcc-scoreboard.firebasestorage.app",
+  messagingSenderId: "191718066818",
+  appId: "1:191718066818:web:7d640d812a3d3a2b77c29b",
+  measurementId: "G-E244D472RX"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -179,7 +191,7 @@ window.signUp = async function () {
     return;
   }
 
-  const startingBalance = 100;
+  const startingBalance = 1000;
   await setDoc(userRef, { pin, balance: startingBalance });
   currentUser = username;
   saveAndShow(username, pin, startingBalance);
@@ -421,7 +433,7 @@ window.spin = async function () {
 
     if (result < 0) {
       spinResultEl.innerHTML = `You <b>lost</b> $${-result}`;
-    } else if (result === amount * 200) {
+    } else if (result >= amount*180) {
       spinResultEl.innerHTML = `You <b>won</b> $${result}<br><b id="jackpot">JACKPOT</b>`;
       const jackpotEl = document.getElementById("jackpot");
       let colors = ["yellow", "green", "blue", "indigo", "violet", "red", "orange"];
