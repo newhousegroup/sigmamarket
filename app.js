@@ -699,30 +699,40 @@ window.resetTest = async function () {
 
 window.updatebankrupt = async function () {
   const dropdown = document.getElementById("bankrupt");
+  dropdown.innerHTML = ""; // clear previous options
 
   const snapshot = await getDocs(collection(db, "playerdata"));
   let count = 0;
 
   const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
 
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    if ((data.balance || 0) <= 20 && doc.id!==currentUser && !excludedUsers.includes(doc.id)) {
-      const option = document.createElement("option");
-      option.value = doc.id;
-      option.textContent = `${doc.id} ($${data.balance})`;
-      dropdown.appendChild(option);
-      count++;
+  for (const docSnap of snapshot.docs) {
+    const data = docSnap.data();
+    const userId = docSnap.id;
+
+    if ((data.balance || 0) <= 20 && userId !== currentUser && !excludedUsers.includes(userId)) {
+      // Check if user is already enslaved
+      const workerDoc = await getDoc(doc(db, "workers", userId));
+      const workerData = workerDoc.exists() ? workerDoc.data() : {};
+      const isEnslaved = workerData.slave === true;
+
+      if (!isEnslaved) {
+        const option = document.createElement("option");
+        option.value = userId;
+        option.textContent = `${userId} ($${data.balance})`;
+        dropdown.appendChild(option);
+        count++;
+      }
     }
-  });
+  }
 
   if (count === 0) {
     const option = document.createElement("option");
-    option.textContent = "No bankrupt players";
+    option.textContent = "None available";
     option.disabled = true;
     dropdown.appendChild(option);
   }
-}
+};
 
 updatebankrupt();
 
@@ -783,6 +793,8 @@ window.workerMenu = async function () {
   const menu = document.getElementById("bankrupt");
   const cf = document.getElementById("enslaveBtn");
   const free = document.getElementById("freeslaveBtn");
+
+  free.style.display = 'none';
 
   if (!currentUser) return;
   const ref = doc(db, "workers", currentUser);
