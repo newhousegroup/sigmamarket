@@ -373,7 +373,7 @@ window.spin = async function () {
     }
 
     const spinval = parseInt(spinCode);
-    const amount = Math.log2(spinval + 1) * Math.sqrt(spinval);
+    const amount = /*Math.log2(spinval + 1) * Math.sqrt(spinval)*/spinval;
     const playerRef = doc(db, "playerdata", currentUser);
     const playerSnap = await getDoc(playerRef);
 
@@ -396,7 +396,7 @@ window.spin = async function () {
       spinResultEl.innerHTML = `Spinning${dots}`;
     }, 300);
 
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     clearInterval(spinInterval);
     spinResultEl.innerHTML = "Please wait";
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -404,7 +404,7 @@ window.spin = async function () {
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
 
-    if (random <= 140) {
+    if (random <= 120) {
       result = -spinval * (Math.random() * 0.5 + 0.5);
     } else if (random <= 220) {
       result = amount * (Math.random() * 3 + 2);          // x3
@@ -488,6 +488,7 @@ function formatNumber(num) {
 }
 
 function updateMaxReward() {
+  /*
   const inputEl = document.getElementById("spinCode");
   const outputEl = document.getElementById("maxReward");
   const val = Number(inputEl.value);
@@ -499,6 +500,8 @@ function updateMaxReward() {
 
   const reward = Math.min(Math.floor(200 * Math.log2(val + 1) * Math.sqrt(val)), 1e9);
   outputEl.textContent = "$" + formatNumber(reward);
+  */
+ return;
 }
 
 // Attach event listener for live update
