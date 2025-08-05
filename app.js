@@ -406,11 +406,11 @@ window.spin = async function () {
 
     if (random <= 120) {
       result = -spinval * (Math.random() * 0.5 + 0.5);
-    } else if (random <= 220) {
+    } else if (random <= 210) {
       result = amount * (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
       result = amount * 4;          // x5
-   */ } else if (random <= 236) {
+   */ } else if (random <= 234) {
       result = amount * 9;          // x10
     } else if (random <= 239) {
       result = amount * 24;         // x25
