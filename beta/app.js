@@ -811,3 +811,19 @@ window.workerMenu = async function () {
     text.innerHTML = `Select a player with a net worth less than $10 to become your worker.`;
   }
 }
+
+window.listenToAuction = function () {
+  const auctionRef = doc(db, "server", "auction");
+  let redirected = false;
+
+  onSnapshot(auctionRef, (docSnap) => {
+    const data = docSnap.data();
+    if (data && data.active && !redirected) {
+      redirected = true;
+      alert("There is an ongoing auction!");
+      window.location.href = "auction.html";
+    }
+  });
+};
+
+listenToAuction();
