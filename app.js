@@ -722,7 +722,7 @@ window.updatebankrupt = async function () {
 
   snapshot.forEach(doc => {
     const data = doc.data();
-    if ((data.balance || 0) <= 20 && doc.id!==currentUser && !excludedUsers.includes(doc.id)) {
+    if ((data.balance || 0) <= /*20*/ 800 && doc.id!==currentUser && !excludedUsers.includes(doc.id)) {
       const option = document.createElement("option");
       option.value = doc.id;
       option.textContent = `${doc.id} ($${data.balance})`;
