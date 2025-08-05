@@ -699,7 +699,6 @@ window.resetTest = async function () {
 
 window.updatebankrupt = async function () {
   const dropdown = document.getElementById("bankrupt");
-  dropdown.innerHTML = ""; // clear previous options
 
   const snapshot = await getDocs(collection(db, "playerdata"));
   let count = 0;
