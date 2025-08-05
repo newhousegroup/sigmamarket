@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auction Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 500px;
+      margin: 40px !important;
+    }
+
+    h1 {
+      margin-bottom: 0;
+    }
+
+    #status {
+      margin: 10px 0;
+      font-weight: bold;
+    }
+
+    #bidInput {
+      width: 100px;
+    }
+
+    #bidBtn {
+      padding: 5px 10px;
+      margin-left: 10px;
+    }
+
+    #messages {
+      margin-top: 20px;
+      color: red;
+    }
+  </style>
+  <link rel="stylesheet" href="main.css">
+</head>
+
+<body>
+
+  <h1>Live Auction</h1>
+  <div id="status">Loading auction...</div>
+
+  <div id="auctionInfo" style="display:none;">
+    <p>Min Reward: $<span id="minReward"></span></p>
+    <p>Max Reward: $<span id="maxReward"></span></p>
+    <p>Current Highest Bid: $<span id="currentPrice"></span></p>
+    <p>Current Winner: <span id="currentWinner"></span></p>
+
+    <input type="number" id="bidInput" placeholder="Your bid" min="0" style="font-size:24px" />
+    <button id="bidBtn" style="font-size:24px;">Place Bid</button>
+  </div>
+  <br>
+  <a href="https://newhs.cc/sigmamarket">Go back to main page</a>
+
+  <div id="messages"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // Your Firebase config here (replace with yours)
+    const firebaseConfig = {
+      apiKey: "AIzaSyC0Ojzt2HxZzTwmUZsX9ZEZ31NiyNqo6B8",
+      authDomain: "sigma-market-app.firebaseapp.com",
+      projectId: "sigma-market-app",
+      storageBucket: "sigma-market-app.appspot.com",
+      messagingSenderId: "1042846633134",
+      appId: "1:1042846633134:web:ef61598314d0987ec6713f",
+      measurementId: "G-WG84HP2QDH"
+    };
+
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Assume currentUser is defined elsewhere in your app, e.g., auth.uid
+    // Detect user from localStorage
+    const playerData = localStorage.getItem("playerdata");
+
+    if (!playerData) {
+      // Redirect to login page if not logged in
+      window.location.href = "index.html"; // or your login page URL
+    } else {
+      const parsed = JSON.parse(playerData);
+      window.currentUser = parsed.username;
+      window.currentPin = parsed.pin;
+      window.currentBalance = parsed.balance;
+
+      // Optionally start the game logic or load the page as needed
+      // Example:
+      // startBalancePolling();
+      // showGameUI(currentUser, currentBalance);
+    }
+
+    const statusEl = document.getElementById("status");
+    const auctionInfo = document.getElementById("auctionInfo");
+    const minRewardEl = document.getElementById("minReward");
+    const maxRewardEl = document.getElementById("maxReward");
+    const currentPriceEl = document.getElementById("currentPrice");
+    const currentWinnerEl = document.getElementById("currentWinner");
+    const bidInput = document.getElementById("bidInput");
+    const bidBtn = document.getElementById("bidBtn");
+    const messagesEl = document.getElementById("messages");
+
+    let lastBidTime = 0;
+
+    // Listen to auction updates live
+    const auctionRef = doc(db, "server", "auction");
+
+    onSnapshot(auctionRef, (snap) => {
+      if (!snap.exists()) {
+        statusEl.textContent = "No auction currently available.";
+        auctionInfo.style.display = "none";
+        return;
+      }
+
+      const data = snap.data();
+
+      if (!data.active) {
+        auctionInfo.style.display = "none";
+
+        if (data.currentWinner === currentUser) {
+          statusEl.innerHTML = `<span style="font-size:24px; font-weight:400;"><span style="color:green;">🎉 You won the auction!</span><br>Code: <b>${data.code}</b><br></span>Your balance will be charged for your bid soon.`;
+        } else {
+          statusEl.innerHTML = "Auction has ended.";
+        }
+
+        return;
+      }
+      statusEl.textContent = "Auction is live! Place your bids.";
+      auctionInfo.style.display = "block";
+
+      minRewardEl.textContent = data.minReward;
+      maxRewardEl.textContent = data.maxReward;
+      currentPriceEl.textContent = data.currentPrice;
+      currentWinnerEl.textContent = data.currentWinner || "None";
+      messagesEl.textContent = "";
+    });
+
+    bidBtn.onclick = async () => {
+      messagesEl.textContent = "";
+
+      const bidAmount = parseInt(bidInput.value);
+      if (isNaN(bidAmount)) {
+        messagesEl.textContent = "Please enter a valid bid amount.";
+        return;
+      }
+
+      // Throttle bids to 1 second
+      const now = Date.now();
+      if (now - lastBidTime < 1000) {
+        messagesEl.textContent = "Please wait 1 second between bids.";
+        return;
+      }
+
+      const snap = await getDoc(auctionRef);
+      if (!snap.exists()) {
+        messagesEl.textContent = "No auction active.";
+        return;
+      }
+
+      const data = snap.data();
+
+      if (!data.active) {
+        messagesEl.textContent = "Auction is not active.";
+        return;
+      }
+
+      if (bidAmount <= data.currentPrice) {
+        messagesEl.textContent = "Your bid must be higher than the current price.";
+        return;
+      }
+
+      try {
+        await updateDoc(auctionRef, {
+          currentPrice: bidAmount,
+          currentWinner: currentUser
+        });
+        lastBidTime = now;
+        bidInput.value = "";
+      } catch (e) {
+        messagesEl.textContent = "Error placing bid: " + e.message;
+      }
+    };
+  </script>
+</body>
+
+</html>
