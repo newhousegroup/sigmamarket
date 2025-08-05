@@ -361,6 +361,32 @@ function animateNumber(element, start, end, duration = 500) {
   requestAnimationFrame(step);
 }
 
+function formatNumber(num) {
+  if (num < 1e3) return num.toString();
+
+  const SI_SYMBOL = ["", "K", "M", "B", "T"];
+  
+  // Build aa–zz suffixes
+  const letters = "abcdefghijklmnopqrstuvwxyz";
+  const extra = [];
+  for (let i = 0; i < letters.length; i++) {
+    for (let j = 0; j < letters.length; j++) {
+      extra.push(letters[i] + letters[j]);
+    }
+  }
+
+  const suffixes = SI_SYMBOL.concat(extra.map(s => s.toUpperCase()));
+
+  const tier = Math.floor(Math.log10(num) / 3);
+  if (tier >= suffixes.length) return num.toExponential(3); // fallback for too big
+
+  const suffix = suffixes[tier];
+  const scale = Math.pow(10, tier * 3);
+  const scaled = num / scale;
+
+  return scaled.toFixed(1).replace(/\.0$/, "") + suffix;
+}
+
 window.spin = async function () {
   const spinBtn = document.getElementById("spin");
   spinBtn.disabled = true;
@@ -432,9 +458,9 @@ window.spin = async function () {
     localStorage.setItem("playerdata", JSON.stringify(saved));
 
     if (result < 0) {
-      spinResultEl.innerHTML = `You <b>lost</b> $${-result}`;
+      spinResultEl.innerHTML = `You <b>lost</b> $${formatNumber(-result)}`;
     } else if (result >= amount*180) {
-      spinResultEl.innerHTML = `You <b>won</b> $${result}<br><b id="jackpot">JACKPOT</b>`;
+      spinResultEl.innerHTML = `You <b>won</b> $${formatNumber(result)}<br><b id="jackpot">JACKPOT</b>`;
       const jackpotEl = document.getElementById("jackpot");
       let colors = ["yellow", "green", "blue", "indigo", "violet", "red", "orange"];
       let i = 0;
@@ -447,7 +473,7 @@ window.spin = async function () {
         }
       }, 75);
     } else {
-      spinResultEl.innerHTML = `You <b>won</b> $${result}`;
+      spinResultEl.innerHTML = `You <b>won</b> $${formatNumber(result)}`;
     }
   } finally {
     spinBtn.disabled = false; // Always re-enable, even on error or early return
@@ -477,14 +503,6 @@ if (!window.location.pathname.includes("beta")) {
 
 window.signupoptions = function () {
   signUp();
-}
-
-function formatNumber(num) {
-  if (num >= 1e12) return (num / 1e12).toFixed(1).replace(/\.0$/, "") + "T";
-  if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
-  if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
-  if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
-  return num.toString();
 }
 
 function updateMaxReward() {
