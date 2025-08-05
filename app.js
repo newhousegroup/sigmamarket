@@ -392,7 +392,7 @@ window.spin = async function () {
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
 
-    if (random <= 140) {
+    if (random <= 120) {
       result = -spinval * (Math.random() * 0.5 + 0.5);
     } else if (random <= 220) {
       result = amount * (Math.random() * 3 + 2);          // x3
