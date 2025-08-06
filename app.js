@@ -756,7 +756,7 @@ window.updatebankrupt = async function () {
   }
 }
 
-updatebankrupt();
+/*updatebankrupt();*/
 
 window.enslaveSelected = function () {
   const selected = document.getElementById("bankrupt").value;
@@ -858,4 +858,4 @@ window.listenToAuction = function () {
   });
 };
 
-listenToAuction();
+/*listenToAuction();*/
