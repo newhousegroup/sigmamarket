@@ -95,6 +95,11 @@ document.getElementById("send").addEventListener("click", async () => {
     alert("Invalid recipient or amount");
     return;
   }
+  
+  if (recipient === currentUser) {
+    alert("Cannot send money to yourself");
+    return;
+  }
 
   const senderRef = doc(db, "playerdata", currentUser);
   const recipientRef = doc(db, "playerdata", recipient);
