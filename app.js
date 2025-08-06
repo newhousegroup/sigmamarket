@@ -18,15 +18,14 @@ import {
 };*/
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCwHW5QECsDz1NZkX84jVmFbaJRhDzI99I",
-  authDomain: "bcc-scoreboard.firebaseapp.com",
-  databaseURL: "https://bcc-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "bcc-scoreboard",
-  storageBucket: "bcc-scoreboard.firebasestorage.app",
-  messagingSenderId: "191718066818",
-  appId: "1:191718066818:web:7d640d812a3d3a2b77c29b",
-  measurementId: "G-E244D472RX"
+  apiKey: "AIzaSyCCuyWXzIU33FGrqMEzmtKfB-VTSyq303c",
+  authDomain: "portals1.firebaseapp.com",
+  projectId: "portals1",
+  storageBucket: "portals1.firebasestorage.app",
+  messagingSenderId: "270398409173",
+  appId: "1:270398409173:web:1ef55962bceb910661155c"
 };
+
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
