@@ -95,7 +95,7 @@ document.getElementById("send").addEventListener("click", async () => {
     alert("Invalid recipient or amount");
     return;
   }
-  
+
   if (recipient === currentUser) {
     alert("Cannot send money to yourself");
     return;
@@ -389,7 +389,7 @@ window.spin = async function () {
       spinResultEl.innerHTML = `Spinning${dots}`;
     }, 300);
 
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     clearInterval(spinInterval);
     spinResultEl.innerHTML = "Please wait";
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -397,18 +397,36 @@ window.spin = async function () {
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
 
-    if (random <= 120) {
-      result = -spinval * (Math.random() * 0.5 + 0.5);
-    } else if (random <= 220) {
-      result = amount * (Math.random() * 3 + 2);          // x3
+    restricted = ['x', 'y', 'z', 'frontman', 'reserves']
+
+    if (restricted.includes(currentUser)) {
+      if (random <= 120) {
+        result = -spinval * (Math.random() * 0.5 + 0.5);
+      } else if (random <= 220) {
+        result = amount * (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
       result = amount * 4;          // x5
    */ } else if (random <= 236) {
-      result = amount * 9;          // x10
-    } else if (random <= 239) {
-      result = amount * 24;         // x25
+        result = amount * 9;          // x10
+      } else if (random <= 239) {
+        result = amount * 24;         // x25
+      } else {
+        result = amount * 200;        // Jackpot
+      }
     } else {
-      result = amount * 200;        // Jackpot
+      if (random <= 100) {
+        result = -spinval * (Math.random() * 0.5 + 0.5);
+      } else if (random <= 216) {
+        result = amount * (Math.random() * 3 + 2);          // x3
+    /*} else if (random <= 231) {
+      result = amount * 4;          // x5
+   */ } else if (random <= 234) {
+        result = amount * 9;          // x10
+      } else if (random <= 239) {
+        result = amount * 24;         // x25
+      } else {
+        result = amount * 200;        // Jackpot
+      }
     }
 
     result = Math.floor(result);
@@ -712,7 +730,7 @@ window.updatebankrupt = async function () {
 
   snapshot.forEach(doc => {
     const data = doc.data();
-    if ((data.balance || 0) <= 20 && doc.id!==currentUser && !excludedUsers.includes(doc.id)) {
+    if ((data.balance || 0) <= 20 && doc.id !== currentUser && !excludedUsers.includes(doc.id)) {
       const option = document.createElement("option");
       option.value = doc.id;
       option.textContent = `${doc.id} ($${data.balance})`;
@@ -778,7 +796,7 @@ window.freeSlaveConfirm = async function () {
   const data = masterSnap.data();
   const slaveName = data.owns;
 
-  if(confirm(`Confirm freeing your worker ${slaveName}?`)) {
+  if (confirm(`Confirm freeing your worker ${slaveName}?`)) {
     freeSlave(slaveName);
   }
 }
@@ -803,7 +821,7 @@ window.workerMenu = async function () {
   const isSlave = data.slave === true;
   const isMaster = typeof data.owns === 'string' && data.owns.length > 0;
 
-  if(isMaster) {
+  if (isMaster) {
     free.style.display = 'block';
     cf.style.display = 'none';
     menu.style.display = 'none';
