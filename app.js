@@ -792,7 +792,12 @@ window.workerMenu = async function () {
   if (!currentUser) return;
   const ref = doc(db, "workers", currentUser);
   const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  if (!snap.exists()) {
+    free.style.display = 'none';
+    cf.style.display = 'block';
+    menu.style.display = 'block';
+    text.innerHTML = `Select a player with a net worth less than $10 to become your worker.`;
+  }
 
   const data = snap.data();
   const isSlave = data.slave === true;
