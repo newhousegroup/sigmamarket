@@ -184,7 +184,7 @@ window.signUp = async function () {
     return;
   }
 
-  const startingBalance = 100;
+  const startingBalance = 1000;
   await setDoc(userRef, { pin, balance: startingBalance });
   currentUser = username;
   saveAndShow(username, pin, startingBalance);
@@ -730,7 +730,7 @@ window.updatebankrupt = async function () {
 
   snapshot.forEach(doc => {
     const data = doc.data();
-    if ((data.balance || 0) <= 20 && doc.id !== currentUser && !excludedUsers.includes(doc.id)) {
+    if ((data.balance || 0) <= 300 && doc.id !== currentUser && !excludedUsers.includes(doc.id)) {
       const option = document.createElement("option");
       option.value = doc.id;
       option.textContent = `${doc.id} ($${data.balance})`;
@@ -814,7 +814,7 @@ window.workerMenu = async function () {
     free.style.display = 'none';
     cf.style.display = 'block';
     menu.style.display = 'block';
-    text.innerHTML = `Select a player with a net worth less than $10 to become your worker.`;
+    text.innerHTML = `Select a player with a net worth less than $300 to become your worker.`;
   }
 
   const data = snap.data();
@@ -836,7 +836,7 @@ window.workerMenu = async function () {
     free.style.display = 'none';
     cf.style.display = 'block';
     menu.style.display = 'block';
-    text.innerHTML = `Select a player with a net worth less than $10 to become your worker.`;
+    text.innerHTML = `Select a player with a net worth less than $300 to become your worker.`;
   }
 }
 
