@@ -397,7 +397,7 @@ window.spin = async function () {
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
 
-    restricted = ['x', 'y', 'z', 'frontman', 'reserves']
+    restricted = ['x', 'y', 'z', 'frontman', 'reserves'];
 
     if (restricted.includes(currentUser)) {
       if (random <= 120) {
