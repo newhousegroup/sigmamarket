@@ -45,8 +45,7 @@
   <div id="status">Loading auction...</div>
 
   <div id="auctionInfo" style="display:none;">
-    <p>Min Reward: $<span id="minReward"></span></p>
-    <p>Max Reward: $<span id="maxReward"></span></p>
+    <p>Reward: <span id="reward"></span></p>
     <p>Current Highest Bid: $<span id="currentPrice"></span></p>
     <p>Current Winner: <span id="currentWinner"></span></p>
 
@@ -98,8 +97,7 @@
 
     const statusEl = document.getElementById("status");
     const auctionInfo = document.getElementById("auctionInfo");
-    const minRewardEl = document.getElementById("minReward");
-    const maxRewardEl = document.getElementById("maxReward");
+    const minRewardEl = document.getElementById("reward");
     const currentPriceEl = document.getElementById("currentPrice");
     const currentWinnerEl = document.getElementById("currentWinner");
     const bidInput = document.getElementById("bidInput");
@@ -135,7 +133,6 @@
       auctionInfo.style.display = "block";
 
       minRewardEl.textContent = data.minReward;
-      maxRewardEl.textContent = data.maxReward;
       currentPriceEl.textContent = data.currentPrice;
       currentWinnerEl.textContent = data.currentWinner || "None";
       messagesEl.textContent = "";
