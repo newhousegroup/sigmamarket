@@ -722,22 +722,37 @@ window.resetTest = async function () {
 
 window.updatebankrupt = async function () {
   const dropdown = document.getElementById("bankrupt");
+  dropdown.innerHTML = ""; // Clear existing options
 
   const snapshot = await getDocs(collection(db, "playerdata"));
   let count = 0;
 
   const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
 
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    if ((data.balance || 0) <= 300 && doc.id !== currentUser && !excludedUsers.includes(doc.id)) {
-      const option = document.createElement("option");
-      option.value = doc.id;
-      option.textContent = `${doc.id} ($${data.balance})`;
-      dropdown.appendChild(option);
-      count++;
+  for (const docSnap of snapshot.docs) {
+    const data = docSnap.data();
+    const userId = docSnap.id;
+
+    // Skip excluded, current user, and high balance
+    if ((data.balance || 0) > 300 || userId === currentUser || excludedUsers.includes(userId)) {
+      continue;
     }
-  });
+
+    // Check if the user is a slave
+    const workerRef = doc(db, "workers", userId);
+    const workerSnap = await getDoc(workerRef);
+
+    if (workerSnap.exists() && workerSnap.data().slave === true) {
+      continue; // Skip enslaved users
+    }
+
+    // Passed all checks: add to dropdown
+    const option = document.createElement("option");
+    option.value = userId;
+    option.textContent = `${userId} ($${data.balance})`;
+    dropdown.appendChild(option);
+    count++;
+  }
 
   if (count === 0) {
     const option = document.createElement("option");
