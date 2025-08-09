@@ -150,9 +150,10 @@
         lastBidTime = now;
         bidInput.value = "";
       } catch (e) {
-        messagesEl.textContent = "Lottery entry error: " + e.message;
+        //messagesEl.textContent = "Lottery entry error: " + e.message;
       }
       return;
+
 
       const bidAmount = parseInt(bidInput.value);
       if (isNaN(bidAmount)) {
@@ -194,7 +195,7 @@
         bidInput.value = "";
       } catch (e) {
         messagesEl.textContent = "Error placing bid: " + e.message;
-      }
+      } 
     };
   </script>
 </body>
