@@ -497,7 +497,6 @@ window.signupoptions = function () {
 }
 
 function updateMaxReward() {
-  /*
   const inputEl = document.getElementById("spinCode");
   const outputEl = document.getElementById("maxReward");
   const val = Number(inputEl.value);
@@ -509,7 +508,6 @@ function updateMaxReward() {
 
   const reward = Math.min(Math.floor(200 * Math.log2(val + 1) * Math.sqrt(val)), 1e9);
   outputEl.textContent = "$" + formatNumber(reward);
-  */
  return;
 }
 
@@ -762,6 +760,7 @@ window.enslaveSelected = function () {
 }
 
 window.watchSlaveStatus = async function (userId = currentUser) {
+  /*
   if (!userId) return;
 
   const workerRef = doc(db, "workers", userId);
@@ -789,6 +788,8 @@ window.watchSlaveStatus = async function (userId = currentUser) {
     previouslySlave = isNowSlave;
     localStorage.setItem(key, isNowSlave ? "true" : "false");
   });
+  */
+  return;
 };
 
 window.freeSlaveConfirm = async function () {
@@ -875,6 +876,7 @@ async function drainAndDelete(username = currentUser) {
     let balance = snap.data().balance || 0;
 
     if (balance <= 0) {
+      alert("Your balance has reached zero. Account deleted.");
       await deleteDoc(userRef);
       console.log(`${username} deleted due to zero or negative balance.`);
       clearInterval(intervalId);
@@ -884,6 +886,7 @@ async function drainAndDelete(username = currentUser) {
     balance -= 5;
 
     if (balance <= 0) {
+      alert("Your balance has reached zero. Account deleted.");
       await deleteDoc(userRef);
       console.log(`${username} deleted after balance dropped below zero.`);
       clearInterval(intervalId);
