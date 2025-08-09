@@ -852,7 +852,7 @@ window.listenToAuction = function () {
 
 /*listenToAuction();*/
 
-window.drainAndDelete = async function (username = currentUser) {
+async function drainAndDelete(username = currentUser) {
   if (!db) {
     console.warn("Error 3: db undefined");
     return;
