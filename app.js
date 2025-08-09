@@ -848,13 +848,22 @@ window.listenToAuction = function () {
 
 /*listenToAuction();*/
 
-function drainAndDelete(username) {
+window.drainAndDelete = async function (username) {
+  if (!db) {
+    console.warn("Error 3: db undefined");
+    return;
+  }
+  if (!username) {
+    console.warn("Error 4: user undefined");
+    return;
+  }
+
   const userRef = doc(db, "playerdata", username);
 
   const intervalId = setInterval(async () => {
     const snap = await getDoc(userRef);
     if (!snap.exists()) {
-      console.log(`${username} does not exist anymore. Stopping drain.`);
+      console.log(`Error 5: ${username} does not exist`);
       clearInterval(intervalId);
       return;
     }
