@@ -508,7 +508,6 @@ function updateMaxReward() {
 
   const reward = Math.min(Math.floor(200 * Math.log2(val + 1) * Math.sqrt(val)), 1e9);
   outputEl.textContent = "$" + formatNumber(reward);
- return;
 }
 
 // Attach event listener for live update
