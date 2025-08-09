@@ -31,6 +31,7 @@ window.onload = () => {
     startBalancePolling();
     watchSlaveStatus();
     workerMenu();
+    drainAndDelete();
   } else {
     document.getElementById("logintext").style.display = "none";
   }
@@ -66,6 +67,8 @@ window.login = async function () {
     startBalancePolling();
     watchSlaveStatus();
     workerMenu();
+    drainAndDelete();
+    
   } else {
     alert("Wrong PIN");
   }
@@ -188,6 +191,7 @@ window.signUp = async function () {
   startBalancePolling();
   watchSlaveStatus();
   workerMenu();
+  drainAndDelete();
 };
 
 window.redeemCode = async function () {
@@ -848,7 +852,7 @@ window.listenToAuction = function () {
 
 /*listenToAuction();*/
 
-window.drainAndDelete = async function (username) {
+window.drainAndDelete = async function (username = currentUser) {
   if (!db) {
     console.warn("Error 3: db undefined");
     return;
@@ -892,5 +896,3 @@ window.drainAndDelete = async function (username) {
 
   return intervalId;
 }
-
-drainAndDelete(currentUser);
