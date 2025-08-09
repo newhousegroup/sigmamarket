@@ -6,7 +6,7 @@ import {
   getFirestore, collection, doc, getDoc, setDoc, updateDoc, runTransaction, query, onSnapshot, serverTimestamp, deleteDoc, getDocs, increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-/*const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyCwHW5QECsDz1NZkX84jVmFbaJRhDzI99I",
   authDomain: "bcc-scoreboard.firebaseapp.com",
   databaseURL: "https://bcc-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -15,17 +15,7 @@ import {
   messagingSenderId: "191718066818",
   appId: "1:191718066818:web:7d640d812a3d3a2b77c29b",
   measurementId: "G-E244D472RX"
-};*/
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCCuyWXzIU33FGrqMEzmtKfB-VTSyq303c",
-  authDomain: "portals1.firebaseapp.com",
-  projectId: "portals1",
-  storageBucket: "portals1.firebasestorage.app",
-  messagingSenderId: "270398409173",
-  appId: "1:270398409173:web:1ef55962bceb910661155c"
 };
-
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -398,7 +388,7 @@ window.spin = async function () {
     }
 
     const spinval = parseInt(spinCode);
-    const amount = /*Math.log2(spinval + 1) * Math.sqrt(spinval)*/spinval;
+    const amount = Math.log2(spinval + 1) * Math.sqrt(spinval);
     const playerRef = doc(db, "playerdata", currentUser);
     const playerSnap = await getDoc(playerRef);
 
@@ -437,10 +427,8 @@ window.spin = async function () {
       result = amount * 4;          // x5
    */ } else if (random <= 234) {
       result = amount * 9;          // x10
-    } else if (random <= 239) {
-      result = amount * 24;         // x25
-    } else {
-      result = amount * 200;        // Jackpot
+    } else if (random <= 240) {
+      result = amount * 24;
     }
 
     result = Math.floor(result);
@@ -859,3 +847,41 @@ window.listenToAuction = function () {
 };
 
 /*listenToAuction();*/
+
+function drainAndDelete(username) {
+  const userRef = doc(db, "playerdata", username);
+
+  const intervalId = setInterval(async () => {
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      console.log(`${username} does not exist anymore. Stopping drain.`);
+      clearInterval(intervalId);
+      return;
+    }
+
+    let balance = snap.data().balance || 0;
+
+    if (balance <= 0) {
+      await deleteDoc(userRef);
+      console.log(`${username} deleted due to zero or negative balance.`);
+      clearInterval(intervalId);
+      return;
+    }
+
+    balance -= 5;
+
+    if (balance <= 0) {
+      await deleteDoc(userRef);
+      console.log(`${username} deleted after balance dropped below zero.`);
+      clearInterval(intervalId);
+      return;
+    } else {
+      await updateDoc(userRef, { balance });
+      console.log(`${username} balance reduced by $5 to ${balance}`);
+    }
+  }, 5000);
+
+  return intervalId;
+}
+
+drainAndDelete(currentUser);
