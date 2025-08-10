@@ -387,7 +387,7 @@ window.spin = async function () {
    */ } else if (random <= 234) {
       result = amount * 9;          // x10
     } else if (random <= 240) {
-      result = amount * 24;
+      result = amount * 30;
     }
 
     result = Math.floor(result);
@@ -461,7 +461,7 @@ function updateMaxReward() {
     return;
   }
 
-  const reward = Math.min(Math.floor(200 * Math.log2(val + 1) * Math.sqrt(val)), 1e9);
+  const reward = Math.min(Math.floor(30 * Math.log2(val + 1) * Math.sqrt(val)), 1e9);
   outputEl.textContent = "$" + formatNumber(reward);
 }
 
