@@ -807,6 +807,33 @@ window.listenToAuction = function () {
 
 /*listenToAuction();*/
 
+async function updateTimeRemaining(username = currentUser) {
+  if (!db || !username) return;
+
+  const userRef = doc(db, "playerdata", username);
+  const snap = await getDoc(userRef);
+  if (!snap.exists()) {
+    document.getElementById("timeRem").textContent = "User not found";
+    return;
+  }
+
+  let balance = snap.data().balance || 0;
+  const secondsLeft = balance / 10; // $10 per sec
+
+  const timeEl = document.getElementById("timeRem");
+
+  if (secondsLeft > 86400) {
+    timeEl.textContent = "Over 24 hours";
+    return;
+  }
+
+  const hours = Math.floor(secondsLeft / 3600);
+  const minutes = Math.floor((secondsLeft % 3600) / 60);
+  const seconds = Math.floor(secondsLeft % 60);
+
+  timeEl.textContent = `${hours}h ${minutes}m ${seconds}s`;
+}
+
 async function drainAndDelete(username = currentUser) {
   if (!db) {
     console.warn("Error 3: db undefined");
@@ -837,7 +864,9 @@ async function drainAndDelete(username = currentUser) {
       return;
     }
 
-    balance -= 5;
+    balance -= 50;
+    
+    updateTimeRemaining();
 
     if (balance <= 0) {
       alert("Your balance has reached zero. Account deleted.");
