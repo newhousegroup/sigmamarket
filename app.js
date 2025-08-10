@@ -91,51 +91,6 @@ function showGameUI(username, balance) {
 
 }
 
-document.getElementById("send").addEventListener("click", async () => {
-  const recipient = document.getElementById("recipient").value.trim().toLowerCase();
-  const amount = parseFloat(document.getElementById("amount").value);
-
-  if (!recipient || isNaN(amount) || amount <= 0) {
-    alert("Invalid recipient or amount");
-    return;
-  }
-
-  const senderRef = doc(db, "playerdata", currentUser);
-  const recipientRef = doc(db, "playerdata", recipient);
-
-  const [senderSnap, recipientSnap] = await Promise.all([
-    getDoc(senderRef),
-    getDoc(recipientRef)
-  ]);
-
-  if (!recipientSnap.exists()) {
-    alert("Recipient does not exist");
-    return;
-  }
-
-  const senderData = senderSnap.data();
-  const recipientData = recipientSnap.data();
-
-  if (senderData.balance < amount) {
-    alert("Not enough balance");
-    return;
-  }
-
-  await updateDoc(senderRef, { balance: senderData.balance - amount });
-  await updateDoc(recipientRef, { balance: recipientData.balance + amount });
-
-  const newBalance = senderData.balance - amount;
-  const balanceEl = document.getElementById("balance");
-  const currentDisplayed = parseInt(balanceEl.textContent) || 0;
-  animateNumber(balanceEl, currentDisplayed, newBalance);
-
-  const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
-  saved.balance = newBalance;
-  localStorage.setItem("playerdata", JSON.stringify(saved));
-
-  alert(`Sent $${amount} to ${recipient}`);
-});
-
 window.logout = function () {
   localStorage.removeItem("playerdata");
   currentUser = null;
