@@ -818,7 +818,7 @@ async function updateTimeRemaining(username = currentUser) {
   }
 
   let balance = snap.data().balance || 0;
-  const secondsLeft = (balance / 10) - 5; // $10 per sec
+  const secondsLeft = (balance / 10) - 1; // $10 per sec
 
   const timeEl = document.getElementById("timeRem");
 
@@ -864,7 +864,7 @@ async function drainAndDelete(username = currentUser) {
       return;
     }
 
-    balance -= 50;
+    balance -= 10;
     
     updateTimeRemaining();
 
@@ -878,7 +878,7 @@ async function drainAndDelete(username = currentUser) {
       await updateDoc(userRef, { balance });
       console.log(`${username} balance reduced by $5 to ${balance}`);
     }
-  }, 5000);
+  }, 1000);
 
   return intervalId;
 }
