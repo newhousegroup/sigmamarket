@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Firebase config
-/*
+
 const firebaseConfig = {
   apiKey: "AIzaSyC0Ojzt2HxZzTwmUZsX9ZEZ31NiyNqo6B8",
   authDomain: "sigma-market-app.firebaseapp.com",
@@ -11,15 +11,6 @@ const firebaseConfig = {
   messagingSenderId: "1042846633134",
   appId: "1:1042846633134:web:ef61598314d0987ec6713f",
   measurementId: "G-WG84HP2QDH"
-};*/
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCCuyWXzIU33FGrqMEzmtKfB-VTSyq303c",
-  authDomain: "portals1.firebaseapp.com",
-  projectId: "portals1",
-  storageBucket: "portals1.firebasestorage.app",
-  messagingSenderId: "270398409173",
-  appId: "1:270398409173:web:1ef55962bceb910661155c"
 };
 
 
