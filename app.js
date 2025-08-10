@@ -818,7 +818,7 @@ async function updateTimeRemaining(username = currentUser) {
   }
 
   let balance = snap.data().balance || 0;
-  const secondsLeft = balance / 10; // $10 per sec
+  const secondsLeft = (balance / 10) - 5; // $10 per sec
 
   const timeEl = document.getElementById("timeRem");
 
