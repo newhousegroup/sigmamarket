@@ -355,6 +355,7 @@ function animateNumber(element, start, end, duration = 500) {
 }
 
 window.win = function (amount, display) {
+  console.log(`win function ${amount}, ${display}`);
   amount = Math.floor(amount);
   
   if (amount <= 0) return; // no celebration for losses
