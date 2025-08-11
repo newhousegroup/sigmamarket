@@ -522,7 +522,7 @@ window.spin = async function () {
     }
     
     result = Math.floor(result);
-    win(result, mult);
+    win(mult, result);
 
     const newBalance = playerData.balance + result;
     await updateDoc(playerRef, { balance: newBalance });
