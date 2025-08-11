@@ -354,6 +354,91 @@ function animateNumber(element, start, end, duration = 500) {
   requestAnimationFrame(step);
 }
 
+window.win = function (amount, display) {
+  if (amount <= 0) return; // no celebration for losses
+
+  if (amount <= 10) {
+    // Small wins
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+  } 
+  else if (amount <= 100) {
+    // Medium wins
+    confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+  } 
+  else {
+    // Jackpot
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.background = "rgba(0, 0, 0, 0.85)";
+    overlay.style.zIndex = "9999";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.flexDirection = "column";
+    overlay.style.color = "white";
+    overlay.style.textAlign = "center";
+    overlay.style.fontWeight = "bold";
+
+    const jackpotText = document.createElement("div");
+    jackpotText.innerHTML = `JACKPOT<br>$${display}`;
+    jackpotText.style.fontSize = "0"; // start tiny
+    jackpotText.style.opacity = "0";
+    jackpotText.style.animation = "jackpotZoom 1s ease-out forwards";
+
+    overlay.appendChild(jackpotText);
+    document.body.appendChild(overlay);
+
+    // Confetti loop
+    let confettiInterval = setInterval(() => {
+      confetti({ particleCount: 200, spread: 120, origin: { y: 0.6 } });
+    }, 400);
+
+    // Fireworks burst
+    let fireworkInterval = setInterval(() => {
+      confetti({
+        particleCount: 100,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.6 }
+      });
+      confetti({
+        particleCount: 100,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.6 }
+      });
+    }, 600);
+
+    // Remove after 5s
+    setTimeout(() => {
+      clearInterval(confettiInterval);
+      clearInterval(fireworkInterval);
+      overlay.style.animation = "fadeOut 0.5s ease forwards";
+      setTimeout(() => {
+        document.body.removeChild(overlay);
+      }, 500);
+    }, 5000);
+  }
+};
+
+// Animations
+const style = document.createElement("style");
+style.innerHTML = `
+@keyframes jackpotZoom {
+  0% { font-size: 0; opacity: 0; transform: scale(0.2); }
+  50% { font-size: 20vw; opacity: 1; transform: scale(1.2); white-space:nowrap }
+  100% { font-size: 15vw; opacity: 1; transform: scale(1); white-space:nowrap }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}`;
+document.head.appendChild(style);
+
 window.spin = async function () {
   const spinBtn = document.getElementById("spin");
   spinBtn.disabled = true;
@@ -396,40 +481,48 @@ window.spin = async function () {
 
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
+    let mult = 0;
 
     const restricted = ['x', 'y', 'z', 'frontman', 'reserves'];
 
     if (restricted.includes(currentUser)) {
       if (random <= 120) {
-        result = -spinval * (Math.random() * 0.5 + 0.5);
+        mult = -(Math.random() * 0.5 + 0.5);
       } else if (random <= 220) {
-        result = amount * (Math.random() * 3 + 2);          // x3
+        mult = (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
       result = amount * 4;          // x5
    */ } else if (random <= 236) {
-        result = amount * 9;          // x10
+        mult = 9;          // x10
       } else if (random <= 239) {
-        result = amount * 24;         // x25
+        mult = 24;         // x25
       } else {
-        result = amount * 200;        // Jackpot
+        mult = 200;        // Jackpot
       }
     } else {
       if (random <= 100) {
-        result = -spinval * (Math.random() * 0.5 + 0.5);
+        mult = -(Math.random() * 0.5 + 0.5);
       } else if (random <= 216) {
-        result = amount * (Math.random() * 3 + 2);          // x3
+        mult = (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
       result = amount * 4;          // x5
    */ } else if (random <= 234) {
-        result = amount * 9;          // x10
+        mult = 9;          // x10
       } else if (random <= 239) {
-        result = amount * 24;         // x25
+        mult = 24;         // x25
       } else {
-        result = amount * 200;        // Jackpot
+        mult = 200;        // Jackpot
       }
     }
 
+    if (mult < 0) {
+      result = spinval*mult;
+    } else {
+      result = amount*mult;
+    }
+    
     result = Math.floor(result);
+    win(result, mult);
 
     const newBalance = playerData.balance + result;
     await updateDoc(playerRef, { balance: newBalance });
