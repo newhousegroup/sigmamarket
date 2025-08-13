@@ -141,18 +141,7 @@
     bidBtn.onclick = async () => {
       messagesEl.textContent = "";
       
-      // For special event
-      try {
-        await updateDoc(auctionRef, {
-          currentPrice: 20,
-          currentWinner: currentUser
-        });
-        lastBidTime = now;
-        bidInput.value = "";
-      } catch (e) {
-        //messagesEl.textContent = "Lottery entry error: " + e.message;
-      }
-      return;
+      
 
 
       const bidAmount = parseInt(bidInput.value);
@@ -197,7 +186,24 @@
         messagesEl.textContent = "Error placing bid: " + e.message;
       } 
     };
+    
+    
   </script>
 </body>
 
 </html>
+
+<!--
+// For special event
+      try {
+        await updateDoc(auctionRef, {
+          currentPrice: 20,
+          currentWinner: currentUser
+        });
+        lastBidTime = now;
+        bidInput.value = "";
+      } catch (e) {
+        //messagesEl.textContent = "Lottery entry error: " + e.message;
+      }
+      return;
+      -->
