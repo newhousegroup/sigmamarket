@@ -526,6 +526,8 @@ window.spin = async function () {
     
     result = Math.floor(result);
     win(mult, result);
+    
+    increaseBoost();
 
     const newBalance = playerData.balance + result;
     await updateDoc(playerRef, { balance: newBalance });
@@ -965,3 +967,36 @@ window.listenToAuction = function () {
 };
 
 listenToAuction();
+
+const boostRef = doc(db, "server", "boost");
+
+// listen for changes
+function watchBoost() {
+  const boostBar = document.getElementById("boostBar");
+  const boostValue = document.getElementById("boostValue");
+
+  onSnapshot(boostRef, (snap) => {
+    if (snap.exists()) {
+      const multiplier = snap.data().multiplier || 1;
+      boostValue.textContent = multiplier.toFixed(3) + "x";
+
+      // simple bar scaling (cap at 5x for display)
+      const width = Math.min(multiplier, 5) * 20; 
+      boostBar.style.width = width + "%";
+    }
+  });
+}
+
+// call this when a player gambles
+async function increaseBoost() {
+  const snap = await getDoc(boostRef);
+  if (!snap.exists()) return;
+
+  let multiplier = snap.data().multiplier || 1;
+  multiplier += 0.015;
+
+  await updateDoc(boostRef, { multiplier });
+}
+
+// run watcher on page load
+watchBoost();
