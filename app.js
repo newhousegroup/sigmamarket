@@ -981,7 +981,7 @@ function watchBoost() {
       boostValue.textContent = multiplier.toFixed(3) + "x";
 
       // simple bar scaling (cap at 5x for display)
-      const width = Math.min(multiplier, 5) * 20; 
+      const width = Math.min(multiplier-1, 4) * 25; 
       boostBar.style.width = width + "%";
     }
   });
