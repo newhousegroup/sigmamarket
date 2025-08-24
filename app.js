@@ -496,7 +496,7 @@ window.watchBoost = function () {
     const displayMultiplier = Math.max(1, currentMultiplier - 0.001 * elapsed);
 
     boostValue.textContent = displayMultiplier.toFixed(3) + "x";
-    const width = Math.min(displayMultiplier - 1, 2) * 50;
+    const width = Math.min(displayMultiplier - 1, 1) * 100;
     boostBar.style.width = width + "%";
 
     requestAnimationFrame(tick);
