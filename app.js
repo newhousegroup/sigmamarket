@@ -446,32 +446,54 @@ const boostRef = doc(db, "server", "boost");
 let multiplier = 1;
 
 // listen for changes
-function watchBoost() {
-  const boostBar = document.getElementById("boostBar");
-  const boostValue = document.getElementById("boostValue"); 
+import { doc, getDoc, updateDoc, increment, onSnapshot } 
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  onSnapshot(boostRef, (snap) => {
-    if (snap.exists()) {
-      multiplier = snap.data().multiplier || 1;
-      boostValue.textContent = multiplier.toFixed(3) + "x";
+const boostRef = doc(db, "server", "boost");
+let multiplier = 1;
 
-      // simple bar scaling (cap at 5x for display)
-      const width = Math.min(multiplier-1, 4) * 25; 
-      boostBar.style.width = width + "%";
-    }
-  });
-}
-
-// call this when a player gambles
-async function increaseBoost() {
+// Increase boost on gamble (+0.015)
+window.increaseBoost = async function () {
   const snap = await getDoc(boostRef);
   if (!snap.exists()) return;
 
-  let multiplier = snap.data().multiplier || 1;
+  let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
+
+  // Apply decay first
+  const elapsed = (Date.now() - lastUpdated) / 1000; // in seconds
+  multiplier = Math.max(1, multiplier - 0.01 * elapsed);
+
+  // Add gamble boost
   multiplier += 0.015;
 
-  await updateDoc(boostRef, { multiplier });
-}
+  await updateDoc(boostRef, {
+    multiplier,
+    lastUpdated: Date.now()
+  });
+};
+
+// Watch for changes & update UI
+window.watchBoost = function () {
+  const boostBar = document.getElementById("boostBar");
+  const boostValue = document.getElementById("boostValue");
+
+  onSnapshot(boostRef, (snap) => {
+    if (!snap.exists()) return;
+
+    let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
+
+    // Apply decay client-side
+    const elapsed = (Date.now() - lastUpdated) / 1000;
+    multiplier = Math.max(1, multiplier - 0.01 * elapsed);
+
+    // Show number
+    boostValue.textContent = multiplier.toFixed(3) + "x";
+
+    // Update bar (cap at 5x for display)
+    const width = Math.min(multiplier - 1, 4) * 25;
+    boostBar.style.width = width + "%";
+  });
+};
 
 // run watcher on page load
 watchBoost();
@@ -555,7 +577,7 @@ window.spin = async function () {
     if (mult < 0) {
       result = spinval*mult;
     } else {
-      result = amount*mult;
+      result = amount*mult*multiplier;
     }
     
     result = Math.floor(result);
