@@ -443,7 +443,7 @@ style.innerHTML = `
 document.head.appendChild(style);
 
 const boostRef = doc(db, "server", "boost");
-let multiplier = snap.data().multiplier || 1;
+let multiplier = 1;
 
 // listen for changes
 function watchBoost() {
