@@ -443,40 +443,12 @@ style.innerHTML = `
 document.head.appendChild(style);
 
 const boostRef = doc(db, "server", "boost");
-let multiplier = 1; 
+let boost = 1; // global live boost value
 
-// Calculate current multiplier based on decay
-function getDecayed(multiplier, lastUpdated) {
-  const elapsed = (Date.now() - lastUpdated) / 1000; // seconds
-  return Math.max(1, multiplier - 0.001 * elapsed); // decay slower
-}
-
-// Increase boost on gamble (+0.015)
-window.increaseBoost = async function () {
-  const snap = await getDoc(boostRef);
-  if (!snap.exists()) return;
-
-  let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
-
-  // Apply decay first
-  multiplier = getDecayed(multiplier, lastUpdated);
-
-  // Add gamble boost
-  multiplier += 0.015;
-
-  // Save the new value and timestamp
-  await updateDoc(boostRef, {
-    multiplier,
-    lastUpdated: Date.now()
-  });
-};
-
-// Watch for changes & animate decay client-side
 window.watchBoost = function () {
   const boostBar = document.getElementById("boostBar");
   const boostValue = document.getElementById("boostValue");
 
-  let currentMultiplier = 1;
   let lastUpdatedLocal = Date.now();
 
   onSnapshot(boostRef, (snap) => {
@@ -484,20 +456,25 @@ window.watchBoost = function () {
 
     let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
 
-    // Update local copy based on server
-    currentMultiplier = getDecayed(multiplier, lastUpdated);
-    lastUpdatedLocal = Date.now();
+    // Update boost value + reference timestamp
+    boost = multiplier;
+    lastUpdatedLocal = lastUpdated;
   });
 
-  // Animate decay smoothly
   function tick() {
     const now = Date.now();
     const elapsed = (now - lastUpdatedLocal) / 1000;
-    const displayMultiplier = Math.max(1, currentMultiplier - 0.001 * elapsed);
 
-    boostValue.textContent = displayMultiplier.toFixed(3) + "x";
-    const width = Math.min(displayMultiplier - 1, 1) * 100.0;
+    // apply client-side decay
+    const displayBoost = Math.max(1, boost - 0.001 * elapsed);
+
+    // update UI
+    boostValue.textContent = displayBoost.toFixed(3) + "x";
+    const width = Math.min(displayBoost - 1, 4) * 25;
     boostBar.style.width = width + "%";
+
+    // update global boost so spin() can use it
+    boost = displayBoost;
 
     requestAnimationFrame(tick);
   }
@@ -586,7 +563,7 @@ window.spin = async function () {
     if (mult < 0) {
       result = spinval*mult;
     } else {
-      result = amount*mult*multiplier;
+      result = amount*mult*boost;
     }
     
     result = Math.floor(result);
