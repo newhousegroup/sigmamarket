@@ -443,6 +443,7 @@ style.innerHTML = `
 document.head.appendChild(style);
 
 const boostRef = doc(db, "server", "boost");
+let multiplier = 1; 
 
 // Calculate current multiplier based on decay
 function getDecayed(multiplier, lastUpdated) {
