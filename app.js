@@ -445,6 +445,31 @@ document.head.appendChild(style);
 const boostRef = doc(db, "server", "boost");
 let boost = 1; // global live boost value
 
+function getDecayed(multiplier, lastUpdated) {
+  const elapsed = (Date.now() - lastUpdated) / 1000; // seconds
+  return Math.max(1, multiplier - 0.001 * elapsed); // decay slower
+}
+
+// Increase boost on gamble (+0.015)
+window.increaseBoost = async function () {
+  const snap = await getDoc(boostRef);
+  if (!snap.exists()) return;
+
+  let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
+
+  // Apply decay first
+  multiplier = getDecayed(multiplier, lastUpdated);
+
+  // Add gamble boost
+  multiplier += 0.015;
+
+  // Save the new value and timestamp
+  await updateDoc(boostRef, {
+    multiplier,
+    lastUpdated: Date.now()
+  });
+};
+
 window.watchBoost = function () {
   const boostBar = document.getElementById("boostBar");
   const boostValue = document.getElementById("boostValue");
