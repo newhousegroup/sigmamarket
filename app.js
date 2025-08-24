@@ -445,12 +445,11 @@ document.head.appendChild(style);
 const boostRef = doc(db, "server", "boost");
 let multiplier = 1;
 
-// listen for changes
-import { doc, getDoc, updateDoc, increment, onSnapshot } 
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const boostRef = doc(db, "server", "boost");
-let multiplier = 1;
+// Calculate current multiplier based on decay
+function getDecayed(multiplier, lastUpdated) {
+  const elapsed = (Date.now() - lastUpdated) / 1000; // seconds
+  return Math.max(1, multiplier - 0.001 * elapsed); // decay slower
+}
 
 // Increase boost on gamble (+0.015)
 window.increaseBoost = async function () {
@@ -460,19 +459,19 @@ window.increaseBoost = async function () {
   let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
 
   // Apply decay first
-  const elapsed = (Date.now() - lastUpdated) / 1000; // in seconds
-  multiplier = Math.max(1, multiplier - 0.01 * elapsed);
+  multiplier = getDecayed(multiplier, lastUpdated);
 
   // Add gamble boost
   multiplier += 0.015;
 
+  // Save the new value and timestamp
   await updateDoc(boostRef, {
     multiplier,
     lastUpdated: Date.now()
   });
 };
 
-// Watch for changes & update UI
+// Watch for changes & update UI in real-time
 window.watchBoost = function () {
   const boostBar = document.getElementById("boostBar");
   const boostValue = document.getElementById("boostValue");
@@ -482,20 +481,17 @@ window.watchBoost = function () {
 
     let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
 
-    // Apply decay client-side
-    const elapsed = (Date.now() - lastUpdated) / 1000;
-    multiplier = Math.max(1, multiplier - 0.01 * elapsed);
+    // Apply decay dynamically
+    multiplier = getDecayed(multiplier, lastUpdated);
 
-    // Show number
+    // Update UI
     boostValue.textContent = multiplier.toFixed(3) + "x";
-
-    // Update bar (cap at 5x for display)
     const width = Math.min(multiplier - 1, 4) * 25;
     boostBar.style.width = width + "%";
   });
 };
 
-// run watcher on page load
+// Run watcher on page load
 watchBoost();
 
 window.spin = async function () {
