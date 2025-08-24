@@ -443,7 +443,6 @@ style.innerHTML = `
 document.head.appendChild(style);
 
 const boostRef = doc(db, "server", "boost");
-let multiplier = 1;
 
 // Calculate current multiplier based on decay
 function getDecayed(multiplier, lastUpdated) {
@@ -471,27 +470,40 @@ window.increaseBoost = async function () {
   });
 };
 
-// Watch for changes & update UI in real-time
+// Watch for changes & animate decay client-side
 window.watchBoost = function () {
   const boostBar = document.getElementById("boostBar");
   const boostValue = document.getElementById("boostValue");
+
+  let currentMultiplier = 1;
+  let lastUpdatedLocal = Date.now();
 
   onSnapshot(boostRef, (snap) => {
     if (!snap.exists()) return;
 
     let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
 
-    // Apply decay dynamically
-    multiplier = getDecayed(multiplier, lastUpdated);
-
-    // Update UI
-    boostValue.textContent = multiplier.toFixed(3) + "x";
-    const width = Math.min(multiplier - 1, 4) * 25;
-    boostBar.style.width = width + "%";
+    // Update local copy based on server
+    currentMultiplier = getDecayed(multiplier, lastUpdated);
+    lastUpdatedLocal = Date.now();
   });
+
+  // Animate decay smoothly
+  function tick() {
+    const now = Date.now();
+    const elapsed = (now - lastUpdatedLocal) / 1000;
+    const displayMultiplier = Math.max(1, currentMultiplier - 0.001 * elapsed);
+
+    boostValue.textContent = displayMultiplier.toFixed(3) + "x";
+    const width = Math.min(displayMultiplier - 1, 4) * 25;
+    boostBar.style.width = width + "%";
+
+    requestAnimationFrame(tick);
+  }
+
+  tick();
 };
 
-// Run watcher on page load
 watchBoost();
 
 window.spin = async function () {
