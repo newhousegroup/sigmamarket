@@ -458,7 +458,7 @@ window.increaseBoost = async function () {
   let currentBoost = boost; // <- global updated by watchBoost
 
   // apply increase
-  currentBoost += 0.025;
+  currentBoost += 0.045;
 
   await updateDoc(boostRef, {
     boost: currentBoost,
@@ -540,7 +540,7 @@ window.spin = async function () {
       spinResultEl.innerHTML = `Spinning${dots}`;
     }, 300);
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     clearInterval(spinInterval);
     spinResultEl.innerHTML = "Please wait";
     await new Promise(resolve => setTimeout(resolve, 200));
