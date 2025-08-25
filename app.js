@@ -445,27 +445,23 @@ document.head.appendChild(style);
 const boostRef = doc(db, "server", "boost");
 let boost = 1; // global live boost value
 
-function getDecayed(multiplier, lastUpdated) {
+function getDecayed(boost, lastUpdated) {
   const elapsed = (Date.now() - lastUpdated) / 1000; // seconds
-  return Math.max(1, multiplier - 0.001 * elapsed); // decay slower
+  return Math.max(1, boost - 0.001 * elapsed);
 }
 
-// Increase boost on gamble (+0.015)
 window.increaseBoost = async function () {
   const snap = await getDoc(boostRef);
   if (!snap.exists()) return;
 
-  let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
+  // start from the CURRENT DISPLAY value
+  let currentBoost = boost; // <- global updated by watchBoost
 
-  // Apply decay first
-  multiplier = getDecayed(multiplier, lastUpdated);
+  // apply increase
+  currentBoost += 0.05;
 
-  // Add gamble boost
-  multiplier += 0.015;
-
-  // Save the new value and timestamp
   await updateDoc(boostRef, {
-    multiplier,
+    boost: currentBoost,
     lastUpdated: Date.now()
   });
 };
@@ -475,30 +471,30 @@ window.watchBoost = function () {
   const boostValue = document.getElementById("boostValue");
 
   let lastUpdatedLocal = Date.now();
+  let baseBoost = 1; // last server snapshot
 
   onSnapshot(boostRef, (snap) => {
     if (!snap.exists()) return;
 
-    let { multiplier = 1, lastUpdated = Date.now() } = snap.data();
+    let { boost: storedBoost = 1, lastUpdated = Date.now() } = snap.data();
 
-    // Update boost value + reference timestamp
-    boost = multiplier;
+    baseBoost = storedBoost;
     lastUpdatedLocal = lastUpdated;
   });
 
   function tick() {
     const now = Date.now();
-    const elapsed = (now - lastUpdatedLocal) / 1000;
+    const elapsed = (now - lastUpdatedLocal) / 1000; // seconds since last update
 
-    // apply client-side decay
-    const displayBoost = Math.max(1, boost - 0.001 * elapsed);
+    // apply decay
+    const displayBoost = Math.max(1, baseBoost - 0.002 * elapsed);
 
     // update UI
     boostValue.textContent = displayBoost.toFixed(3) + "x";
-    const width = Math.min(displayBoost - 1, 4) * 25;
+    const width = Math.min(displayBoost - 1, 1) * 100;
     boostBar.style.width = width + "%";
 
-    // update global boost so spin() can use it
+    // update global "boost" so spin() & increaseBoost() can use it
     boost = displayBoost;
 
     requestAnimationFrame(tick);
@@ -544,7 +540,7 @@ window.spin = async function () {
       spinResultEl.innerHTML = `Spinning${dots}`;
     }, 300);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     clearInterval(spinInterval);
     spinResultEl.innerHTML = "Please wait";
     await new Promise(resolve => setTimeout(resolve, 200));
