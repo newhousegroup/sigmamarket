@@ -458,7 +458,7 @@ window.increaseBoost = async function () {
   let currentBoost = boost; // <- global updated by watchBoost
 
   // apply increase
-  currentBoost += 0.05;
+  currentBoost += 0.025;
 
   await updateDoc(boostRef, {
     boost: currentBoost,
@@ -487,7 +487,7 @@ window.watchBoost = function () {
     const elapsed = (now - lastUpdatedLocal) / 1000; // seconds since last update
 
     // apply decay
-    const displayBoost = Math.max(1, baseBoost - 0.002 * elapsed);
+    const displayBoost = Math.max(1, baseBoost - 0.003 * elapsed);
 
     // update UI
     boostValue.textContent = displayBoost.toFixed(3) + "x";
