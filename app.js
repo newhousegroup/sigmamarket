@@ -19,6 +19,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const MAX_BOOST = 3.0;
+
 let currentUser = null;
 
 window.onload = () => {
@@ -469,11 +471,13 @@ window.increaseBoost = async function () {
   const snap = await getDoc(boostRef);
   if (!snap.exists()) return;
 
-  // start from the CURRENT DISPLAY value
-  let currentBoost = boost; // <- global updated by watchBoost
+  let currentBoost = boost; // live decayed value
 
-  // apply increase
+  // Increase
   currentBoost += 0.045;
+
+  // 🔒 HARD LIMIT
+  currentBoost = Math.min(currentBoost, MAX_BOOST);
 
   await updateDoc(boostRef, {
     boost: currentBoost,
