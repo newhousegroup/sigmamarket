@@ -19,6 +19,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const MAX_BOOST = 3.0;
+
 let currentUser = null;
 
 window.onload = () => {
@@ -96,6 +98,11 @@ document.getElementById("send").addEventListener("click", async () => {
     return;
   }
 
+  if (recipient === currentUser) {
+    alert("Cannot send money to yourself");
+    return;
+  }
+
   const senderRef = doc(db, "playerdata", currentUser);
   const recipientRef = doc(db, "playerdata", recipient);
 
@@ -132,7 +139,22 @@ document.getElementById("send").addEventListener("click", async () => {
   alert(`Sent $${amount} to ${recipient}`);
 });
 
-window.logout = function () {
+window.logout = async function () {
+  if (!currentUser) return;
+
+  const workerRef = doc(db, "workers", currentUser);
+  const workerSnap = await getDoc(workerRef);
+
+  // 🚫 Only block logout if a worker doc EXISTS AND slave === true
+  if (workerSnap.exists()) {
+    const data = workerSnap.data();
+    if (data.slave === true) {
+      alert("You cannot log out because you are a worker.");
+      return;
+    }
+  }
+
+  // 🕊️ Everyone else can leave
   localStorage.removeItem("playerdata");
   currentUser = null;
 
@@ -179,7 +201,7 @@ window.signUp = async function () {
     return;
   }
 
-  const startingBalance = 100;
+  const startingBalance = 1000;
   await setDoc(userRef, { pin, balance: startingBalance });
   currentUser = username;
   saveAndShow(username, pin, startingBalance);
@@ -349,6 +371,159 @@ function animateNumber(element, start, end, duration = 500) {
   requestAnimationFrame(step);
 }
 
+window.win = function (amount, display) {
+  console.log(`win function ${amount}, ${display}`);
+  amount = Math.floor(amount);
+  
+  if (amount <= 0) return; // no celebration for losses
+
+  if (amount <= 10) {
+    // Small wins
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+  } 
+  else if (amount <= 100) {
+    // Medium wins
+    confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+  } 
+  else {
+    // Jackpot
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.background = "rgba(0, 0, 0, 0.85)";
+    overlay.style.zIndex = "9999";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.flexDirection = "column";
+    overlay.style.color = "white";
+    overlay.style.textAlign = "center";
+    overlay.style.fontWeight = "bold";
+
+    const jackpotText = document.createElement("div");
+    jackpotText.innerHTML = `JACKPOT<br>$${display}`;
+    jackpotText.style.fontSize = "0"; // start tiny
+    jackpotText.style.opacity = "0";
+    jackpotText.style.animation = "jackpotZoom 1s ease-out forwards";
+
+    overlay.appendChild(jackpotText);
+    document.body.appendChild(overlay);
+
+    // Confetti loop
+    let confettiInterval = setInterval(() => {
+      confetti({ particleCount: 200, spread: 120, origin: { y: 0.6 } });
+    }, 400);
+
+    // Fireworks burst
+    let fireworkInterval = setInterval(() => {
+      confetti({
+        particleCount: 100,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.6 }
+      });
+      confetti({
+        particleCount: 100,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.6 }
+      });
+    }, 600);
+
+    // Remove after 5s
+    setTimeout(() => {
+      clearInterval(confettiInterval);
+      clearInterval(fireworkInterval);
+      overlay.style.animation = "fadeOut 0.5s ease forwards";
+      setTimeout(() => {
+        document.body.removeChild(overlay);
+      }, 500);
+    }, 5000);
+  }
+};
+
+// Animations
+const style = document.createElement("style");
+style.innerHTML = `
+@keyframes jackpotZoom {
+  0% { font-size: 0; opacity: 0; transform: scale(0.2); }
+  50% { font-size: 20vw; opacity: 1; transform: scale(1.2); white-space:nowrap }
+  100% { font-size: 15vw; opacity: 1; transform: scale(1); white-space:nowrap }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}`;
+document.head.appendChild(style);
+
+const boostRef = doc(db, "server", "boost");
+let boost = 1; // global live boost value
+
+function getDecayed(boost, lastUpdated) {
+  const elapsed = (Date.now() - lastUpdated) / 1000; // seconds
+  return Math.max(1, boost - 0.001 * elapsed);
+}
+
+window.increaseBoost = async function () {
+  const snap = await getDoc(boostRef);
+  if (!snap.exists()) return;
+
+  let currentBoost = boost; // live decayed value
+
+  // Increase
+  currentBoost += 0.045;
+
+  // 🔒 HARD LIMIT
+  currentBoost = Math.min(currentBoost, MAX_BOOST);
+
+  await updateDoc(boostRef, {
+    boost: currentBoost,
+    lastUpdated: Date.now()
+  });
+};
+
+window.watchBoost = function () {
+  const boostBar = document.getElementById("boostBar");
+  const boostValue = document.getElementById("boostValue");
+
+  let lastUpdatedLocal = Date.now();
+  let baseBoost = 1; // last server snapshot
+
+  onSnapshot(boostRef, (snap) => {
+    if (!snap.exists()) return;
+
+    let { boost: storedBoost = 1, lastUpdated = Date.now() } = snap.data();
+
+    baseBoost = storedBoost;
+    lastUpdatedLocal = lastUpdated;
+  });
+
+  function tick() {
+    const now = Date.now();
+    const elapsed = (now - lastUpdatedLocal) / 1000; // seconds since last update
+
+    // apply decay
+    const displayBoost = Math.max(1, baseBoost - 0.003 * elapsed);
+
+    // update UI
+    boostValue.textContent = displayBoost.toFixed(3) + "x";
+    const width = Math.min(displayBoost - 1, 1) * 100;
+    boostBar.style.width = width + "%";
+
+    // update global "boost" so spin() & increaseBoost() can use it
+    boost = displayBoost;
+
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+};
+
+watchBoost();
+
 window.spin = async function () {
   const spinBtn = document.getElementById("spin");
   spinBtn.disabled = true;
@@ -384,29 +559,57 @@ window.spin = async function () {
       spinResultEl.innerHTML = `Spinning${dots}`;
     }, 300);
 
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     clearInterval(spinInterval);
     spinResultEl.innerHTML = "Please wait";
     await new Promise(resolve => setTimeout(resolve, 200));
 
     const random = Math.floor(Math.random() * 240) + 1;
     let result = 0;
+    let mult = 0;
 
-    if (random <= 140) {
-      result = -spinval * (Math.random() * 0.5 + 0.5);
-    } else if (random <= 220) {
-      result = amount * (Math.random() * 3 + 2);          // x3
+    const restricted = [];
+
+    if (restricted.includes(currentUser)) {
+      if (random <= 120) {
+        mult = -(Math.random() * 0.5 + 0.5);
+      } else if (random <= 220) {
+        mult = (Math.random() * 3 + 2);          // x3
     /*} else if (random <= 231) {
       result = amount * 4;          // x5
    */ } else if (random <= 236) {
-      result = amount * 9;          // x10
-    } else if (random <= 239) {
-      result = amount * 24;         // x25
+        mult = 9;          // x10
+      } else if (random <= 239) {
+        mult = 24;         // x25
+      } else {
+        mult = 200;        // Jackpot
+      }
     } else {
-      result = amount * 200;        // Jackpot
+      if (random <= 100) {
+        mult = -(Math.random() * 0.5 + 0.5);
+      } else if (random <= 216) {
+        mult = (Math.random() * 3 + 2);          // x3
+    /*} else if (random <= 231) {
+      result = amount * 4;          // x5
+   */ } else if (random <= 234) {
+        mult = 9;          // x10
+      } else if (random <= 239) {
+        mult = 24;         // x25
+      } else {
+        mult = 200;        // Jackpot
+      }
     }
 
+    if (mult < 0) {
+      result = spinval*mult;
+    } else {
+      result = amount*mult*boost;
+    }
+    
     result = Math.floor(result);
+    win(mult, result);
+    
+    increaseBoost();
 
     const newBalance = playerData.balance + result;
     await updateDoc(playerRef, { balance: newBalance });
@@ -705,16 +908,30 @@ window.updatebankrupt = async function () {
 
   const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
 
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    if ((data.balance || 0) <= 20 && doc.id!==currentUser && !excludedUsers.includes(doc.id)) {
-      const option = document.createElement("option");
-      option.value = doc.id;
-      option.textContent = `${doc.id} ($${data.balance})`;
-      dropdown.appendChild(option);
-      count++;
+  for (const docSnap of snapshot.docs) {
+    const data = docSnap.data();
+    const userId = docSnap.id;
+
+    // Skip excluded, current user, and high balance
+    if ((data.balance || 0) > 300 || userId === currentUser || excludedUsers.includes(userId)) {
+      continue;
     }
-  });
+
+    // Check if the user is a slave
+    const workerRef = doc(db, "workers", userId);
+    const workerSnap = await getDoc(workerRef);
+
+    if (workerSnap.exists() && workerSnap.data().slave === true) {
+      continue; // Skip enslaved users
+    }
+
+    // Passed all checks: add to dropdown
+    const option = document.createElement("option");
+    option.value = userId;
+    option.textContent = `${userId} ($${data.balance})`;
+    dropdown.appendChild(option);
+    count++;
+  }
 
   if (count === 0) {
     const option = document.createElement("option");
@@ -773,7 +990,7 @@ window.freeSlaveConfirm = async function () {
   const data = masterSnap.data();
   const slaveName = data.owns;
 
-  if(confirm(`Confirm freeing your worker ${slaveName}?`)) {
+  if (confirm(`Confirm freeing your worker ${slaveName}?`)) {
     freeSlave(slaveName);
   }
 }
@@ -787,13 +1004,18 @@ window.workerMenu = async function () {
   if (!currentUser) return;
   const ref = doc(db, "workers", currentUser);
   const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  if (!snap.exists()) {
+    free.style.display = 'none';
+    cf.style.display = 'block';
+    menu.style.display = 'block';
+    text.innerHTML = `Select a player with a net worth less than $300 to become your worker.`;
+  }
 
   const data = snap.data();
   const isSlave = data.slave === true;
   const isMaster = typeof data.owns === 'string' && data.owns.length > 0;
 
-  if(isMaster) {
+  if (isMaster) {
     free.style.display = 'block';
     cf.style.display = 'none';
     menu.style.display = 'none';
@@ -808,7 +1030,7 @@ window.workerMenu = async function () {
     free.style.display = 'none';
     cf.style.display = 'block';
     menu.style.display = 'block';
-    text.innerHTML = `Select a player with a net worth less than $10 to become your worker.`;
+    text.innerHTML = `Select a player with a net worth less than $300 to become your worker.`;
   }
 }
 
