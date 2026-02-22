@@ -1011,7 +1011,7 @@ window.listenToAuction = function () {
 listenToAuction();
 
 /* ==========================================================
-   ===================== MARKET SYSTEM V2 ====================
+   ===================== MARKET SYSTEM V3 ===================
    ========================================================== */
 
 const ITEM_UI_TO_KEY = {
@@ -1020,78 +1020,61 @@ const ITEM_UI_TO_KEY = {
   innocamp_coin: "ino"
 };
 
-const ITEM_KEY_TO_NAME = {
-  dia: "💎 Diamond",
-  med: "🥇 Gold Medal",
-  ino: "🪙 Innocamp Coin"
-};
-
 /* =========================
-   Inventory
+   Ensure inventory exists
 ========================= */
 async function ensureInventory() {
   if (!currentUser) return;
-  const ref = doc(db, "inventory", currentUser);
+  const ref = doc(db,"inventory",currentUser);
   const snap = await getDoc(ref);
-  if (!snap.exists()) await setDoc(ref, { dia:0, med:0, ino:0 });
+  if (!snap.exists()) await setDoc(ref,{dia:0,med:0,ino:0});
 }
 
+/* =========================
+   Inventory watcher (UI)
+========================= */
 window.watchInventory = function () {
   const ref = doc(db,"inventory",currentUser);
-
-  onSnapshot(ref, snap=>{
+  onSnapshot(ref,snap=>{
     if(!snap.exists()) return;
     const inv=snap.data();
-    inv_diamond.textContent = inv.dia || 0;
-    inv_gold_medal.textContent = inv.med || 0;
-    inv_innocamp_coin.textContent = inv.ino || 0;
+    inv_diamond.textContent=inv.dia||0;
+    inv_gold_medal.textContent=inv.med||0;
+    inv_innocamp_coin.textContent=inv.ino||0;
   });
 };
 
 /* =========================
-   SELL LISTINGS WATCHER
+   MARKET WATCHER
 ========================= */
 window.watchMarket = function () {
 
-  /* ===== SELL LISTINGS ===== */
-  const sellRef = collection(db, "msell");
+  /* ---------- SELL LISTINGS ---------- */
+  onSnapshot(collection(db,"msell"),snap=>{
+    const listings=[];
+    snap.forEach(d=>listings.push({id:d.id,...d.data()}));
+    listings.sort((a,b)=>(b.created||0)-(a.created||0));
 
-  onSnapshot(sellRef, (snap) => {
-    const listings = [];
-    snap.forEach(d => listings.push({ id: d.id, ...d.data() }));
-
-    listings.sort((a,b)=> (b.created?.seconds||0)-(a.created?.seconds||0));
-
-    const el = document.getElementById("sellListings");
-    if (!el) return;
-
-    el.innerHTML = listings.map(L => `
+    sellListings.innerHTML = listings.map(L=>`
       <div style="margin-bottom:6px;">
         ${ITEMS[L.item].name} — $${L.price} by ${L.seller}
         <button onclick="buyListing('${L.id}')">Buy</button>
-        ${L.seller === currentUser ? `<button onclick="cancelListing('${L.id}')">Cancel</button>` : ""}
+        ${L.seller===currentUser?`<button onclick="cancelSell('${L.id}')">Cancel</button>`:""}
       </div>
     `).join("") || "<i>No listings.</i>";
   });
 
+  /* ---------- BUY OFFERS ---------- */
+  onSnapshot(collection(db,"mbuy"),snap=>{
+    const offers=[];
+    snap.forEach(d=>offers.push({id:d.id,...d.data()}));
+    offers.sort((a,b)=>(b.created||0)-(a.created||0));
 
-  /* ===== BUY OFFERS ===== */
-  const buyRef = collection(db, "mbuy");
-
-  onSnapshot(buyRef, (snap) => {
-    const offers = [];
-    snap.forEach(d => offers.push({ id: d.id, ...d.data() }));
-
-    offers.sort((a,b)=> (b.created?.seconds||0)-(a.created?.seconds||0));
-
-    const el = document.getElementById("buyOffers");
-    if (!el) return;
-
-    el.innerHTML = offers.map(O => `
+    buyOffers.innerHTML = offers.map(O=>`
       <div style="margin-bottom:6px;">
         Wants ${ITEMS[O.item].name} — paying $${O.price} (by ${O.buyer})
-        <button onclick="sellToOffer('${O.id}')">Sell</button>
-        ${O.buyer === currentUser ? `<button onclick="cancelOffer('${O.id}')">Cancel</button>` : ""}
+        <button onclick="acceptBuy('${O.id}')">Sell</button>
+        ${O.buyer===currentUser?`<button onclick="cancelBuy('${O.id}')">Cancel</button>`:""}
       </div>
     `).join("") || "<i>No offers.</i>";
   });
@@ -1104,20 +1087,21 @@ window.watchMarket = function () {
 window.createSellFromUI = async function () {
   const item = ITEM_UI_TO_KEY[marketItem.value];
   const price = parseInt(marketPrice.value);
+  if(!item||!price) return alert("Invalid");
 
-  if(!item || !price) return alert("Invalid");
+  const invRef=doc(db,"inventory",currentUser);
+  const listRef=doc(collection(db,"msell"));
 
-  const invRef = doc(db,"inventory",currentUser);
-  const listingRef = doc(collection(db,"msell"));
-
-  await runTransaction(db, async tx=>{
+  await runTransaction(db,async tx=>{
     const invSnap=await tx.get(invRef);
-    const inv=invSnap.data();
-    if((inv[item]||0)<=0) throw "No item";
+    if((invSnap.data()[item]||0)<=0) throw "You don't own item";
 
     tx.update(invRef,{[item]:increment(-1)});
-    tx.set(listingRef,{
-      seller:currentUser,item,price,created:Date.now()
+    tx.set(listRef,{
+      seller:currentUser,
+      item,
+      price,
+      created:Date.now()
     });
   });
 
@@ -1125,18 +1109,21 @@ window.createSellFromUI = async function () {
 };
 
 /* =========================
-   BUY LISTING (pay money)
+   BUY SELL LISTING
 ========================= */
-window.buyListing = async function (id) {
+window.buyListing = async function(id){
   const ref=doc(db,"msell",id);
 
-  await runTransaction(db, async tx=>{
+  await runTransaction(db,async tx=>{
     const snap=await tx.get(ref);
     const L=snap.data();
 
     const buyerRef=doc(db,"playerdata",currentUser);
     const sellerRef=doc(db,"playerdata",L.seller);
     const invRef=doc(db,"inventory",currentUser);
+
+    const buyerSnap=await tx.get(buyerRef);
+    if((buyerSnap.data().balance||0)<L.price) throw "Not enough money";
 
     tx.update(buyerRef,{balance:increment(-L.price)});
     tx.update(sellerRef,{balance:increment(L.price)});
@@ -1154,23 +1141,31 @@ window.cancelSell = async function(id){
   const ref=doc(db,"msell",id);
   const invRef=doc(db,"inventory",currentUser);
 
-  await runTransaction(db, async tx=>{
+  await runTransaction(db,async tx=>{
     const snap=await tx.get(ref);
     const L=snap.data();
     tx.update(invRef,{[L.item]:increment(1)});
     tx.delete(ref);
   });
+
+  alert("Listing cancelled");
 };
 
 /* =========================
    CREATE BUY OFFER
 ========================= */
 window.createBuyFromUI = async function () {
-  const item = ITEM_UI_TO_KEY[marketItem.value];
-  const price = parseInt(marketPrice.value);
+  const item=ITEM_UI_TO_KEY[marketItem.value];
+  const price=parseInt(marketPrice.value);
+  if(!item||!price) return alert("Invalid");
 
-  const ref=doc(collection(db,"mbuy"));
-  await setDoc(ref,{buyer:currentUser,item,price});
+  await setDoc(doc(collection(db,"mbuy")),{
+    buyer:currentUser,
+    item,
+    price,
+    created:Date.now()
+  });
+
   alert("Buy offer created!");
 };
 
@@ -1180,25 +1175,38 @@ window.createBuyFromUI = async function () {
 window.acceptBuy = async function(id){
   const ref=doc(db,"mbuy",id);
 
-  await runTransaction(db, async tx=>{
+  await runTransaction(db,async tx=>{
     const snap=await tx.get(ref);
-    const L=snap.data();
+    const O=snap.data();
 
     const sellerInv=doc(db,"inventory",currentUser);
     const sellerRef=doc(db,"playerdata",currentUser);
-    const buyerRef=doc(db,"playerdata",L.buyer);
-    const buyerInv=doc(db,"inventory",L.buyer);
+    const buyerRef=doc(db,"playerdata",O.buyer);
+    const buyerInv=doc(db,"inventory",O.buyer);
 
-    tx.update(sellerInv,{[L.item]:increment(-1)});
-    tx.update(buyerInv,{[L.item]:increment(1)});
-    tx.update(buyerRef,{balance:increment(-L.price)});
-    tx.update(sellerRef,{balance:increment(L.price)});
+    const invSnap=await tx.get(sellerInv);
+    if((invSnap.data()[O.item]||0)<=0) throw "You don't own item";
+
+    tx.update(sellerInv,{[O.item]:increment(-1)});
+    tx.update(buyerInv,{[O.item]:increment(1)});
+    tx.update(buyerRef,{balance:increment(-O.price)});
+    tx.update(sellerRef,{balance:increment(O.price)});
     tx.delete(ref);
   });
 
   alert("Sold!");
 };
 
+/* =========================
+   CANCEL BUY OFFER
+========================= */
 window.cancelBuy = async id=>{
   await deleteDoc(doc(db,"mbuy",id));
+  alert("Offer cancelled");
 };
+
+// Init
+
+await ensureInventory();
+watchInventory();
+watchMarket();
