@@ -116,6 +116,7 @@ window.login = async function () {
     workerMenu();
 
     watchBoost();
+    startMarket();
 
     await ensureInventory();
     watchInventory();
@@ -188,6 +189,7 @@ window.signUp = async function () {
   workerMenu();
 
   watchBoost();
+  startMarket();
 };
 
 /* =========================
@@ -1009,278 +1011,228 @@ window.listenToAuction = function () {
 listenToAuction();
 
 /* ==========================================================
-   ===================== MARKET SYSTEM ======================
+   ===================== MARKET SYSTEM ====================
    ========================================================== */
 
+const ITEM_MAP_UI_TO_DB = {
+  diamond: "dia",
+  gold_medal: "med",
+  innocamp_coin: "ino"
+};
+
+const ITEM_NAMES = {
+  dia: "💎 Diamond",
+  med: "🥇 Gold Medal",
+  ino: "🪙 Innocamp Coin"
+};
+
+
+
+
+
 /* =========================
-   Inventory ensure + watcher
+   Ensure inventory exists
 ========================= */
 async function ensureInventory() {
-  if (!currentUser) return;
-
-  const invRef = doc(db, "inventory", currentUser);
-  const invSnap = await getDoc(invRef);
-
-  if (!invSnap.exists()) {
-    await setDoc(invRef, { dia: 0, med: 0, ino: 0 });
-  }
+  const ref = doc(db, "inventory", currentUser);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) await setDoc(ref, { dia: 0, med: 0, ino: 0 });
 }
 
-window.watchInventory = function () {
-  if (!currentUser) return;
 
+
+
+
+/* =========================
+   Inventory watcher → UI
+========================= */
+window.watchInventory = function () {
   const invRef = doc(db, "inventory", currentUser);
 
-  onSnapshot(invRef, (snap) => {
+  onSnapshot(invRef, snap => {
     if (!snap.exists()) return;
-
     const inv = snap.data();
 
-    // If you later add UI elements, hook them here.
-    // Example: document.getElementById("invDia").textContent = inv.dia || 0;
-    console.log("[Inventory]", inv);
-  }, (err) => {
-    console.error("Inventory watcher error:", err);
+    inv_diamond.textContent = inv.dia || 0;
+    inv_gold_medal.textContent = inv.med || 0;
+    inv_innocamp_coin.textContent = inv.ino || 0;
   });
 };
 
-/* =========================
-   Global stock docs (for dia/med)
-========================= */
-async function ensureStockDocs() {
-  // This is safe to call often; it only creates docs if missing.
-  const stockCol = collection(db, "stock");
 
-  for (const key of Object.keys(GLOBAL_STOCK_DEFAULTS)) {
-    const sref = doc(stockCol, key);
-    const ssnap = await getDoc(sref);
-    if (!ssnap.exists()) {
-      await setDoc(sref, { remaining: GLOBAL_STOCK_DEFAULTS[key] });
-    }
-  }
-}
+
+
 
 /* =========================
-   Admin mint (optional)
-   Gives an item to a user and consumes global stock if limited.
-   Usage: mintItem("someone", "dia", 1)
+   CREATE SELL ORDER
 ========================= */
-window.mintItem = async function (toUser, itemKey, qty = 1) {
-  qty = Math.floor(Number(qty));
-  toUser = (toUser || "").trim().toLowerCase();
+window.createSellFromUI = async function () {
+  const itemKey = ITEM_MAP_UI_TO_DB[marketItem.value];
+  const price = parseInt(marketPrice.value);
 
-  if (currentUser !== "admin") {
-    alert("Admin only.");
-    return;
-  }
-  if (!toUser || !ITEMS[itemKey] || qty <= 0) {
-    alert("Invalid mint.");
-    return;
-  }
+  if (!itemKey || !price || price <= 0) return alert("Invalid input");
 
-  const invRef = doc(db, "inventory", toUser);
-  const playerRef = doc(db, "playerdata", toUser);
-  const stockRef = doc(db, "stock", itemKey);
+  const invRef = doc(db, "inventory", currentUser);
+  const sellRef = doc(collection(db, "msell"));
 
-  await runTransaction(db, async (tx) => {
-    const playerSnap = await tx.get(playerRef);
-    if (!playerSnap.exists()) throw new Error("User not found.");
-
+  await runTransaction(db, async tx => {
     const invSnap = await tx.get(invRef);
-    if (!invSnap.exists()) tx.set(invRef, { dia: 0, med: 0, ino: 0 });
+    if ((invSnap.data()[itemKey] || 0) <= 0) throw "No item";
 
-    if (ITEMS[itemKey].globallyLimited) {
-      const stockSnap = await tx.get(stockRef);
-      if (!stockSnap.exists()) {
-        tx.set(stockRef, { remaining: GLOBAL_STOCK_DEFAULTS[itemKey] ?? 0 });
-      }
-      const remaining = (stockSnap.exists() ? stockSnap.data().remaining : (GLOBAL_STOCK_DEFAULTS[itemKey] ?? 0));
-      if (remaining < qty) throw new Error("Not enough global stock remaining.");
-      tx.update(stockRef, { remaining: remaining - qty });
-    }
+    tx.update(invRef, { [itemKey]: increment(-1) });
 
-    tx.update(invRef, { [itemKey]: increment(qty) });
-  });
-
-  alert(`Minted ${qty}x ${ITEMS[itemKey].name} to ${toUser}`);
-};
-
-/* =========================
-   Market watcher + optional render hook
-========================= */
-window.watchMarket = function () {
-  const q = query(collection(db, "market"));
-
-  onSnapshot(q, (snap) => {
-    const listings = [];
-    snap.forEach(d => listings.push({ id: d.id, ...d.data() }));
-
-    // If you later add UI elements, hook them here.
-    // For now just log and keep infra ready.
-    console.log("[Market listings]", listings);
-
-    // Optional: If you add <div id="marketList"></div> in HTML later,
-    // this will automatically render.
-    const marketListEl = document.getElementById("marketList");
-    if (marketListEl) {
-      listings.sort((a, b) => {
-        const at = a.created?.seconds || 0;
-        const bt = b.created?.seconds || 0;
-        return bt - at;
-      });
-
-      marketListEl.innerHTML = listings.map(L => {
-        const nm = ITEMS[L.item]?.name || L.item;
-        return `
-          <div style="border:1px solid #ddd; padding:8px; margin:6px 0; border-radius:8px;">
-            <div style="font-weight:600;">${nm}</div>
-            <div style="font-size:12px; opacity:.8;">Seller: ${L.seller}</div>
-            <div style="margin-top:6px;">
-              Price: <b>$${L.price}</b>
-              <button style="margin-left:10px;" onclick="buyListing('${L.id}')">Buy</button>
-              ${L.seller === currentUser ? `<button style="margin-left:6px;" onclick="cancelListing('${L.id}')">Cancel</button>` : ""}
-            </div>
-          </div>
-        `;
-      }).join("") || "<i>No listings.</i>";
-    }
-  }, (err) => {
-    console.error("Market watcher error:", err);
-  });
-};
-
-/* =========================
-   Sell item -> create listing
-   Usage: sellItem("dia", 500)
-========================= */
-window.sellItem = async function (itemKey, price) {
-  if (!currentUser) {
-    alert("Please log in first.");
-    return;
-  }
-
-  itemKey = (itemKey || "").trim();
-  price = Math.floor(Number(price));
-
-  if (!ITEMS[itemKey] || !Number.isFinite(price) || price <= 0) {
-    alert("Invalid listing.");
-    return;
-  }
-
-  const sellerInvRef = doc(db, "inventory", currentUser);
-  const listingsCol = collection(db, "market");
-  const listingRef = doc(listingsCol); // pre-generate doc id so we can tx.set
-
-  await runTransaction(db, async (tx) => {
-    const invSnap = await tx.get(sellerInvRef);
-    if (!invSnap.exists()) throw new Error("Inventory not found.");
-
-    const inv = invSnap.data();
-    const owned = inv[itemKey] || 0;
-    if (owned <= 0) throw new Error("You don't own this item.");
-
-    // take item first to prevent dupes
-    tx.update(sellerInvRef, { [itemKey]: increment(-1) });
-
-    // create listing
-    tx.set(listingRef, {
+    tx.set(sellRef, {
       seller: currentUser,
       item: itemKey,
-      price: price,
+      price,
       created: serverTimestamp()
     });
   });
-
-  alert(`Listed ${ITEMS[itemKey].name} for $${price}`);
 };
 
+
+
+
+
 /* =========================
-   Cancel your listing -> return item
+   CREATE BUY OFFER
 ========================= */
-window.cancelListing = async function (listingId) {
-  if (!currentUser) {
-    alert("Please log in first.");
-    return;
-  }
-  if (!listingId) return;
+window.createBuyFromUI = async function () {
+  const itemKey = ITEM_MAP_UI_TO_DB[marketItem.value];
+  const price = parseInt(marketPrice.value);
+  const playerRef = doc(db, "playerdata", currentUser);
+  const buyRef = doc(collection(db, "mbuy"));
 
-  const listingRef = doc(db, "market", listingId);
-  const invRef = doc(db, "inventory", currentUser);
+  if (!itemKey || !price || price <= 0) return alert("Invalid input");
 
-  await runTransaction(db, async (tx) => {
-    const listingSnap = await tx.get(listingRef);
-    if (!listingSnap.exists()) throw new Error("Listing no longer exists.");
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(playerRef);
+    if (snap.data().balance < price) throw "No money";
 
-    const L = listingSnap.data();
-    if (L.seller !== currentUser) throw new Error("Not your listing.");
+    tx.update(playerRef, { balance: increment(-price) });
 
-    // return item
-    tx.update(invRef, { [L.item]: increment(1) });
-
-    // delete listing
-    tx.delete(listingRef);
+    tx.set(buyRef, {
+      buyer: currentUser,
+      item: itemKey,
+      price,
+      created: serverTimestamp()
+    });
   });
-
-  alert("Listing canceled. Item returned.");
 };
 
+
+
+
+
 /* =========================
-   Buy listing -> money + item transfer, delete listing
+   BUY FROM SELL LISTING
 ========================= */
-window.buyListing = async function (listingId) {
-  if (!currentUser) {
-    alert("Please log in first.");
-    return;
-  }
-  if (!listingId) return;
-
-  const listingRef = doc(db, "market", listingId);
+window.buyFromSell = async function (id) {
+  const sellRef = doc(db, "msell", id);
   const buyerRef = doc(db, "playerdata", currentUser);
-  const buyerInvRef = doc(db, "inventory", currentUser);
+  const buyerInv = doc(db, "inventory", currentUser);
 
-  await runTransaction(db, async (tx) => {
-    const listingSnap = await tx.get(listingRef);
-    if (!listingSnap.exists()) throw new Error("Listing is gone.");
+  await runTransaction(db, async tx => {
+    const sellSnap = await tx.get(sellRef);
+    if (!sellSnap.exists()) throw "Gone";
 
-    const L = listingSnap.data();
-    if (L.seller === currentUser) throw new Error("You can't buy your own listing.");
-
-    const sellerRef = doc(db, "playerdata", L.seller);
+    const L = sellSnap.data();
+    if (L.seller === currentUser) throw "Own listing";
 
     const buyerSnap = await tx.get(buyerRef);
-    if (!buyerSnap.exists()) throw new Error("Buyer not found.");
+    if (buyerSnap.data().balance < L.price) throw "No money";
 
-    const buyerBal = buyerSnap.data().balance || 0;
-    if (buyerBal < L.price) throw new Error("Not enough money.");
-
-    // money transfer
     tx.update(buyerRef, { balance: increment(-L.price) });
-    tx.update(sellerRef, { balance: increment(L.price) });
+    tx.update(doc(db,"playerdata",L.seller), { balance: increment(L.price) });
+    tx.update(buyerInv, { [L.item]: increment(1) });
 
-    // item to buyer
-    tx.update(buyerInvRef, { [L.item]: increment(1) });
-
-    // remove listing
-    tx.delete(listingRef);
+    tx.delete(sellRef);
   });
-
-  // Update local storage + UI balance quickly (snapshot will also catch it)
-  try {
-    const buyerSnap2 = await getDoc(doc(db, "playerdata", currentUser));
-    if (buyerSnap2.exists()) {
-      const newBal = buyerSnap2.data().balance || 0;
-
-      const balanceEl = document.getElementById("balance");
-      const currentDisplayed = parseInt(balanceEl.textContent) || 0;
-      animateNumber(balanceEl, currentDisplayed, newBal);
-
-      const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
-      saved.balance = newBal;
-      localStorage.setItem("playerdata", JSON.stringify(saved));
-    }
-  } catch (e) {
-    console.warn("Post-buy balance refresh failed:", e);
-  }
-
-  alert("Purchase successful!");
 };
+
+
+
+
+
+/* =========================
+   SELL TO BUY OFFER
+========================= */
+window.sellToBuyer = async function (id) {
+  const buyRef = doc(db, "mbuy", id);
+  const sellerInv = doc(db, "inventory", currentUser);
+  const sellerRef = doc(db, "playerdata", currentUser);
+
+  await runTransaction(db, async tx => {
+    const buySnap = await tx.get(buyRef);
+    if (!buySnap.exists()) throw "Gone";
+
+    const O = buySnap.data();
+
+    const invSnap = await tx.get(sellerInv);
+    if ((invSnap.data()[O.item] || 0) <= 0) throw "No item";
+
+    tx.update(sellerInv, { [O.item]: increment(-1) });
+    tx.update(sellerRef, { balance: increment(O.price) });
+    tx.update(doc(db,"inventory",O.buyer), { [O.item]: increment(1) });
+
+    tx.delete(buyRef);
+  });
+};
+
+
+
+
+
+/* =========================
+   WATCH SELL LISTINGS UI
+========================= */
+function watchSellListings() {
+  onSnapshot(collection(db,"msell"), snap => {
+    let html="";
+    snap.forEach(d=>{
+      const L=d.data();
+      html+=`
+        <div>
+        ${ITEM_NAMES[L.item]} — $${L.price} by ${L.seller}
+        <button onclick="buyFromSell('${d.id}')">Buy</button>
+        </div>`;
+    });
+    sellListings.innerHTML = html || "No listings";
+  });
+}
+
+
+
+
+
+/* =========================
+   WATCH BUY OFFERS UI
+========================= */
+function watchBuyOffers() {
+  onSnapshot(collection(db,"mbuy"), snap => {
+    let html="";
+    snap.forEach(d=>{
+      const L=d.data();
+      html+=`
+        <div>
+        ${L.buyer} buying ${ITEM_NAMES[L.item]} for $${L.price}
+        <button onclick="sellToBuyer('${d.id}')">Sell</button>
+        </div>`;
+    });
+    buyOffers.innerHTML = html || "No offers";
+  });
+}
+
+
+
+
+
+/* =========================
+   START MARKET WATCHERS
+========================= */
+async function startMarket() {
+  await ensureInventory();
+  watchInventory();
+  watchSellListings();
+  watchBuyOffers();
+}
