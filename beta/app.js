@@ -1236,3 +1236,5 @@ async function startMarket() {
   watchSellListings();
   watchBuyOffers();
 }
+
+startMarket();
