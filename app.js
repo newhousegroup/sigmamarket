@@ -564,7 +564,7 @@ window.spin = async function () {
     let result = 0;
     let mult = 0;
 
-    const restricted = ['x', 'y', 'z', 'frontman', 'reserves'];
+    const restricted = [];
 
     if (restricted.includes(currentUser)) {
       if (random <= 120) {
