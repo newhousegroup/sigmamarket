@@ -116,7 +116,7 @@ window.login = async function () {
     workerMenu();
 
     watchBoost();
-    await startMarket();
+
 
     await ensureInventory();
     watchInventory();
@@ -189,7 +189,7 @@ window.signUp = async function () {
   workerMenu();
 
   watchBoost();
-  await startMarket();
+
 };
 
 /* =========================
