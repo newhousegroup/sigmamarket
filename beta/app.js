@@ -1011,232 +1011,182 @@ window.listenToAuction = function () {
 listenToAuction();
 
 /* ==========================================================
-   ===================== MARKET SYSTEM ====================
+   ===================== MARKET SYSTEM V2 ====================
    ========================================================== */
 
-const ITEM_MAP_UI_TO_DB = {
+const ITEM_UI_TO_KEY = {
   diamond: "dia",
   gold_medal: "med",
   innocamp_coin: "ino"
 };
 
-const ITEM_NAMES = {
+const ITEM_KEY_TO_NAME = {
   dia: "💎 Diamond",
   med: "🥇 Gold Medal",
   ino: "🪙 Innocamp Coin"
 };
 
-
-
-
-
 /* =========================
-   Ensure inventory exists
+   Inventory
 ========================= */
 async function ensureInventory() {
+  if (!currentUser) return;
   const ref = doc(db, "inventory", currentUser);
   const snap = await getDoc(ref);
-  if (!snap.exists()) await setDoc(ref, { dia: 0, med: 0, ino: 0 });
+  if (!snap.exists()) await setDoc(ref, { dia:0, med:0, ino:0 });
 }
 
-
-
-
-
-/* =========================
-   Inventory watcher → UI
-========================= */
 window.watchInventory = function () {
-  const invRef = doc(db, "inventory", currentUser);
+  const ref = doc(db,"inventory",currentUser);
 
-  onSnapshot(invRef, snap => {
-    if (!snap.exists()) return;
-    const inv = snap.data();
-
+  onSnapshot(ref, snap=>{
+    if(!snap.exists()) return;
+    const inv=snap.data();
     inv_diamond.textContent = inv.dia || 0;
     inv_gold_medal.textContent = inv.med || 0;
     inv_innocamp_coin.textContent = inv.ino || 0;
   });
 };
 
-
-
-
-
 /* =========================
-   CREATE SELL ORDER
+   SELL LISTINGS WATCHER
 ========================= */
-window.createSellFromUI = async function () {
-  const itemKey = ITEM_MAP_UI_TO_DB[marketItem.value];
-  const price = parseInt(marketPrice.value);
+window.watchMarket = function () {
 
-  if (!itemKey || !price || price <= 0) return alert("Invalid input");
-
-  const invRef = doc(db, "inventory", currentUser);
-  const sellRef = doc(collection(db, "msell"));
-
-  await runTransaction(db, async tx => {
-    const invSnap = await tx.get(invRef);
-    if ((invSnap.data()[itemKey] || 0) <= 0) throw "No item";
-
-    tx.update(invRef, { [itemKey]: increment(-1) });
-
-    tx.set(sellRef, {
-      seller: currentUser,
-      item: itemKey,
-      price,
-      created: serverTimestamp()
+  // SELL LISTINGS
+  onSnapshot(collection(db,"market_sell"), snap=>{
+    let html="";
+    snap.forEach(d=>{
+      const L={id:d.id,...d.data()};
+      html+=`
+        <div>
+          ${ITEM_KEY_TO_NAME[L.item]} — $${L.price} by ${L.seller}
+          <button onclick="buyListing('${L.id}')">Buy</button>
+          ${L.seller===currentUser?`<button onclick="cancelSell('${L.id}')">Cancel</button>`:""}
+        </div>
+      `;
     });
+    sellListings.innerHTML = html || "<i>No listings</i>";
+  });
+
+  // BUY OFFERS
+  onSnapshot(collection(db,"market_buy"), snap=>{
+    let html="";
+    snap.forEach(d=>{
+      const L={id:d.id,...d.data()};
+      html+=`
+        <div>
+          ${ITEM_KEY_TO_NAME[L.item]} — offering $${L.price} by ${L.buyer}
+          <button onclick="acceptBuy('${L.id}')">Sell to them</button>
+          ${L.buyer===currentUser?`<button onclick="cancelBuy('${L.id}')">Cancel</button>`:""}
+        </div>
+      `;
+    });
+    buyOffers.innerHTML = html || "<i>No offers</i>";
   });
 };
 
+/* =========================
+   CREATE SELL LISTING
+========================= */
+window.createSellFromUI = async function () {
+  const item = ITEM_UI_TO_KEY[marketItem.value];
+  const price = parseInt(marketPrice.value);
 
+  if(!item || !price) return alert("Invalid");
 
+  const invRef = doc(db,"inventory",currentUser);
+  const listingRef = doc(collection(db,"market_sell"));
 
+  await runTransaction(db, async tx=>{
+    const invSnap=await tx.get(invRef);
+    const inv=invSnap.data();
+    if((inv[item]||0)<=0) throw "No item";
+
+    tx.update(invRef,{[item]:increment(-1)});
+    tx.set(listingRef,{
+      seller:currentUser,item,price,created:Date.now()
+    });
+  });
+
+  alert("Item listed!");
+};
+
+/* =========================
+   BUY LISTING (pay money)
+========================= */
+window.buyListing = async function (id) {
+  const ref=doc(db,"market_sell",id);
+
+  await runTransaction(db, async tx=>{
+    const snap=await tx.get(ref);
+    const L=snap.data();
+
+    const buyerRef=doc(db,"playerdata",currentUser);
+    const sellerRef=doc(db,"playerdata",L.seller);
+    const invRef=doc(db,"inventory",currentUser);
+
+    tx.update(buyerRef,{balance:increment(-L.price)});
+    tx.update(sellerRef,{balance:increment(L.price)});
+    tx.update(invRef,{[L.item]:increment(1)});
+    tx.delete(ref);
+  });
+
+  alert("Purchased!");
+};
+
+/* =========================
+   CANCEL SELL LISTING
+========================= */
+window.cancelSell = async function(id){
+  const ref=doc(db,"market_sell",id);
+  const invRef=doc(db,"inventory",currentUser);
+
+  await runTransaction(db, async tx=>{
+    const snap=await tx.get(ref);
+    const L=snap.data();
+    tx.update(invRef,{[L.item]:increment(1)});
+    tx.delete(ref);
+  });
+};
 
 /* =========================
    CREATE BUY OFFER
 ========================= */
 window.createBuyFromUI = async function () {
-  const itemKey = ITEM_MAP_UI_TO_DB[marketItem.value];
+  const item = ITEM_UI_TO_KEY[marketItem.value];
   const price = parseInt(marketPrice.value);
-  const playerRef = doc(db, "playerdata", currentUser);
-  const buyRef = doc(collection(db, "mbuy"));
 
-  if (!itemKey || !price || price <= 0) return alert("Invalid input");
-
-  await runTransaction(db, async tx => {
-    const snap = await tx.get(playerRef);
-    if (snap.data().balance < price) throw "No money";
-
-    tx.update(playerRef, { balance: increment(-price) });
-
-    tx.set(buyRef, {
-      buyer: currentUser,
-      item: itemKey,
-      price,
-      created: serverTimestamp()
-    });
-  });
+  const ref=doc(collection(db,"market_buy"));
+  await setDoc(ref,{buyer:currentUser,item,price});
+  alert("Buy offer created!");
 };
 
-
-
-
-
 /* =========================
-   BUY FROM SELL LISTING
+   ACCEPT BUY OFFER (sell item)
 ========================= */
-window.buyFromSell = async function (id) {
-  const sellRef = doc(db, "msell", id);
-  const buyerRef = doc(db, "playerdata", currentUser);
-  const buyerInv = doc(db, "inventory", currentUser);
+window.acceptBuy = async function(id){
+  const ref=doc(db,"market_buy",id);
 
-  await runTransaction(db, async tx => {
-    const sellSnap = await tx.get(sellRef);
-    if (!sellSnap.exists()) throw "Gone";
+  await runTransaction(db, async tx=>{
+    const snap=await tx.get(ref);
+    const L=snap.data();
 
-    const L = sellSnap.data();
-    if (L.seller === currentUser) throw "Own listing";
+    const sellerInv=doc(db,"inventory",currentUser);
+    const sellerRef=doc(db,"playerdata",currentUser);
+    const buyerRef=doc(db,"playerdata",L.buyer);
+    const buyerInv=doc(db,"inventory",L.buyer);
 
-    const buyerSnap = await tx.get(buyerRef);
-    if (buyerSnap.data().balance < L.price) throw "No money";
-
-    tx.update(buyerRef, { balance: increment(-L.price) });
-    tx.update(doc(db,"playerdata",L.seller), { balance: increment(L.price) });
-    tx.update(buyerInv, { [L.item]: increment(1) });
-
-    tx.delete(sellRef);
+    tx.update(sellerInv,{[L.item]:increment(-1)});
+    tx.update(buyerInv,{[L.item]:increment(1)});
+    tx.update(buyerRef,{balance:increment(-L.price)});
+    tx.update(sellerRef,{balance:increment(L.price)});
+    tx.delete(ref);
   });
+
+  alert("Sold!");
 };
 
-
-
-
-
-/* =========================
-   SELL TO BUY OFFER
-========================= */
-window.sellToBuyer = async function (id) {
-  const buyRef = doc(db, "mbuy", id);
-  const sellerInv = doc(db, "inventory", currentUser);
-  const sellerRef = doc(db, "playerdata", currentUser);
-
-  await runTransaction(db, async tx => {
-    const buySnap = await tx.get(buyRef);
-    if (!buySnap.exists()) throw "Gone";
-
-    const O = buySnap.data();
-
-    const invSnap = await tx.get(sellerInv);
-    if ((invSnap.data()[O.item] || 0) <= 0) throw "No item";
-
-    tx.update(sellerInv, { [O.item]: increment(-1) });
-    tx.update(sellerRef, { balance: increment(O.price) });
-    tx.update(doc(db,"inventory",O.buyer), { [O.item]: increment(1) });
-
-    tx.delete(buyRef);
-  });
+window.cancelBuy = async id=>{
+  await deleteDoc(doc(db,"market_buy",id));
 };
-
-
-
-
-
-/* =========================
-   WATCH SELL LISTINGS UI
-========================= */
-function watchSellListings() {
-  onSnapshot(collection(db,"msell"), snap => {
-    let html="";
-    snap.forEach(d=>{
-      const L=d.data();
-      html+=`
-        <div>
-        ${ITEM_NAMES[L.item]} — $${L.price} by ${L.seller}
-        <button onclick="buyFromSell('${d.id}')">Buy</button>
-        </div>`;
-    });
-document.getElementById("sellListings").innerHTML =
-  html || "No listings";
-  });
-}
-
-
-
-
-
-/* =========================
-   WATCH BUY OFFERS UI
-========================= */
-function watchBuyOffers() {
-  onSnapshot(collection(db,"mbuy"), snap => {
-    let html="";
-    snap.forEach(d=>{
-      const L=d.data();
-      html+=`
-        <div>
-        ${L.buyer} buying ${ITEM_NAMES[L.item]} for $${L.price}
-        <button onclick="sellToBuyer('${d.id}')">Sell</button>
-        </div>`;
-    });
-document.getElementById("buyOffers").innerHTML =
-  html || "No offers";
-  });
-}
-
-
-
-
-
-/* =========================
-   START MARKET WATCHERS
-========================= */
-async function startMarket() {
-  await ensureInventory();
-  watchInventory();
-  watchSellListings();
-  watchBuyOffers();
-}
-
-await startMarket();
