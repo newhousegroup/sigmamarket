@@ -133,7 +133,7 @@
               <div style="display:flex; flex-direction:column; width:320px;">
   <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Inventory</p>
 
-  <div style="border:1px solid black; padding:10px;">
+  <div style="border:0; padding:10px;">
     <div style="display:flex; justify-content:space-between;">
       <span>💎 Diamond</span>
       <b id="inv_diamond">0</b>
@@ -152,7 +152,7 @@
 
   <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Market</p>
 
-  <div style="border:1px solid black; padding:10px;">
+  <div style="border:0; padding:10px;">
     <p style="margin-bottom:6px;"><b>Create order</b></p>
 
     <select id="marketItem" style="width:100%;">
@@ -161,7 +161,7 @@
       <option value="innocamp_coin">🪙 Innocamp Coin</option>
     </select>
 
-    <input id="marketPrice" type="tel" placeholder="Price" style="width:100%; margin-top:6px;">
+    <input id="marketPrice" type="tel" placeholder="Price" style="width:100%; margin-top:6px; box-sizing:border-box;">
 
     <div style="display:flex; gap:8px;">
       <button style="flex:1;" onclick="createSellFromUI()"><b>Sell</b></button>
@@ -171,14 +171,14 @@
 
   <br>
 
-  <div style="border:1px solid black; padding:10px;">
+  <div style="border:0; padding:10px;">
     <p style="margin-bottom:6px;"><b>Sell listings</b></p>
     <div id="sellListings" style="white-space:nowrap;"></div>
   </div>
 
   <br>
 
-  <div style="border:1px solid black; padding:10px;">
+  <div style="border:0; padding:10px;">
     <p style="margin-bottom:6px;"><b>Buy offers</b></p>
     <div id="buyOffers" style="white-space:nowrap;"></div>
   </div>
