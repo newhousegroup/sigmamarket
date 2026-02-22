@@ -130,10 +130,60 @@
                 <p id="leaderboard" style="white-space:nowrap;"></p>
               </div>
               
-              <div style="display:flex; flex-direction:column;">
-                <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Market</p>
-                <b>Coming Soon</b>
-              </div>
+              <div style="display:flex; flex-direction:column; width:320px;">
+  <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Inventory</p>
+
+  <div style="border:1px solid black; padding:10px;">
+    <div style="display:flex; justify-content:space-between;">
+      <span>💎 Diamond</span>
+      <b id="inv_diamond">0</b>
+    </div>
+    <div style="display:flex; justify-content:space-between;">
+      <span>🥇 Gold Medal</span>
+      <b id="inv_gold_medal">0</b>
+    </div>
+    <div style="display:flex; justify-content:space-between;">
+      <span>🪙 Innocamp Coin</span>
+      <b id="inv_innocamp_coin">0</b>
+    </div>
+  </div>
+
+  <br>
+
+  <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Market</p>
+
+  <div style="border:1px solid black; padding:10px;">
+    <p style="margin-bottom:6px;"><b>Create order</b></p>
+
+    <select id="marketItem" style="width:100%;">
+      <option value="diamond">💎 Diamond</option>
+      <option value="gold_medal">🥇 Gold Medal</option>
+      <option value="innocamp_coin">🪙 Innocamp Coin</option>
+    </select>
+
+    <input id="marketPrice" type="tel" placeholder="Price" style="width:100%; margin-top:6px;">
+
+    <div style="display:flex; gap:8px;">
+      <button style="flex:1;" onclick="createSellFromUI()"><b>Sell</b></button>
+      <button style="flex:1;" onclick="createBuyFromUI()"><b>Buy</b></button>
+    </div>
+  </div>
+
+  <br>
+
+  <div style="border:1px solid black; padding:10px;">
+    <p style="margin-bottom:6px;"><b>Sell listings</b></p>
+    <div id="sellListings" style="white-space:nowrap;"></div>
+  </div>
+
+  <br>
+
+  <div style="border:1px solid black; padding:10px;">
+    <p style="margin-bottom:6px;"><b>Buy offers</b></p>
+    <div id="buyOffers" style="white-space:nowrap;"></div>
+  </div>
+
+</div>
               
             </div>
 
