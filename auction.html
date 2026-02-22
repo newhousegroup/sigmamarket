@@ -142,7 +142,7 @@
       messagesEl.textContent = "";
       
       
-
+  /*
 
       const bidAmount = parseInt(bidInput.value);
       if (isNaN(bidAmount)) {
@@ -184,8 +184,26 @@
         bidInput.value = "";
       } catch (e) {
         messagesEl.textContent = "Error placing bid: " + e.message;
-      } 
+      } */
+
+try {
+        await updateDoc(auctionRef, {
+          currentPrice: 20,
+          currentWinner: currentUser
+        });
+        lastBidTime = now;
+        bidInput.value = "";
+      } catch (e) {
+        messagesEl.textContent = "Lottery entry error: " + e.message;
+      }
+      return;
+      
+      
     };
+    
+    
+
+
     
     
   </script>
