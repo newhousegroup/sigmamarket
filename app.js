@@ -137,7 +137,28 @@ document.getElementById("send").addEventListener("click", async () => {
   alert(`Sent $${amount} to ${recipient}`);
 });
 
-window.logout = function () {
+window.logout = async function () {
+
+  if (!currentUser) return;
+
+  // 🔎 Check worker status in Firestore
+  const userRef = doc(db, "workers", currentUser);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    alert("Worker record not found.");
+    return;
+  }
+
+  const data = userSnap.data();
+
+  // 🚫 Workers cannot escape reality
+  if (data.slave === true) {
+    alert("You cannot log out because you are a worker.");
+    return;
+  }
+
+  // 🕊️ Free men may leave
   localStorage.removeItem("playerdata");
   currentUser = null;
 
