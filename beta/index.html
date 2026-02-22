@@ -11,8 +11,8 @@
   <meta property="og:title" content="Sigma Market">
   <meta name="author" content="Made by Newhouse">
   <meta property="og:locale" content="en_US">
-  <meta name="description" content="Play the multiplayer economy game using username + PIN.">
-  <meta property="og:description" content="Play the multiplayer economy game using username + PIN.">
+  <meta name="description" content="Play the multiplayer economy game.">
+  <meta property="og:description" content="Play the multiplayer economy game.">
   <link rel="canonical" href="http://newhs.cc/sigmamarket/beta/">
   <meta property="og:url" content="http://newhs.cc/sigmamarket/beta/">
   <meta property="og:site_name" content="Sigma Market">
@@ -80,13 +80,16 @@
             <button onclick="login()" style="width:100%;"><b>Login</b></button><br><br>
             <button onclick="signUp()" style="width:100%;">New player</button>
             <br><br>
-            <p style="font-size:12px;">The system is currently in beta testing phase. There may be bugs. Please report
-              them to the developer.</p>
+            <p style="font-size:16px;">Sigma Market <b>SEASON 3</b><br><span style="font-size:12px;">The previous information has been reset. If you previously had an account, you will need to sign up for a new one.</span></p>
           </div>
 
           <!-- Game UI -->
           <div id="gameBox" style="display:none;">
             <h2>💰 Balance: $<span id="balance">...</span></h2>
+            <h3 style="font-weight:300; line-height:90%">Global Boost: <span id="boostValue">1.000x</span></h3>
+            <div style="border:1px solid black; width:100%; height:20px; position:relative;">
+              <div id="boostBar" style="background:green; height:100%; width:0%;"></div>
+            </div><br>
             <hr><br>
 
             <div style="display: flex; flex-wrap: no; overflow-x:scroll; gap: 20px; flex-direction: row;">
@@ -96,7 +99,8 @@
                 <p style="font-size:22px; font-weight:600; margin-bottom:0;">Send Money</p>
                 <input type="text" id="recipient" placeholder="Recipient username">
                 <input type="tel" id="amount" placeholder="Amount">
-                <button id="send">Send</button><br>
+                <button id="send">Send</button>
+                <p style="font-size:12px;"></p><br>
                 <p style="font-size:22px; font-weight:600; margin-bottom:0;">Redeem Money</p>
                 <input type="text" id="redeemID" placeholder="Enter Code">
                 <button id="sendr" onclick="redeemCode()">Redeem</button><br>
@@ -112,7 +116,7 @@
 
               <div style="display:flex; flex-direction:column;">
                 <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Worker</p>
-                <p style="font-size:18px;" id="workerBar">Select a player with a net worth less than $20 to become your worker. Workers have 40% of their earnings given to their master.</p>
+                <p style="font-size:18px;" id="workerBar">Select a player with a net worth less than $300 to become your worker. Workers have 40% of their earnings given to their master.</p>
                 <select id="bankrupt">
                   <option disabled selected>Choose a player</option>
                 </select><br>
@@ -126,11 +130,17 @@
                 <p id="leaderboard" style="white-space:nowrap;"></p>
               </div>
               
+              <div style="display:flex; flex-direction:column;">
+                <p style="font-size:28px; font-weight:200; display:block !important; width:280px;">Market</p>
+                <b>Coming Soon</b>
+              </div>
+              
             </div>
 
           </div>
 
           <!-- Script -->
+          <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
           <script type="module" src="app.js"></script>
 
         </div>
