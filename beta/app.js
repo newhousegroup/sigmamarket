@@ -3,9 +3,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
-  getFirestore, collection, doc, getDoc, setDoc, updateDoc, runTransaction, query, onSnapshot, serverTimestamp, deleteDoc, getDocs, increment
+  getFirestore, collection, doc, getDoc, setDoc, updateDoc,
+  runTransaction, query, onSnapshot, serverTimestamp,
+  deleteDoc, getDocs, increment, addDoc, where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+/* =========================
+   Firebase init
+========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC0Ojzt2HxZzTwmUZsX9ZEZ31NiyNqo6B8",
   authDomain: "sigma-market-app.firebaseapp.com",
@@ -19,30 +24,71 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+/* =========================
+   Globals / constants
+========================= */
 const MAX_BOOST = 3.0;
 
 let currentUser = null;
 
-window.onload = () => {
+/** Market + Inventory
+ * inventory/{username} = { dia, med, ino }
+ * market/{listingId} = { seller, item, price, created }
+ * stock/{item} = { remaining }  // only for globally limited items (dia, med)
+ */
+const ITEMS = {
+  dia: { name: "Diamond 💎", globallyLimited: true },
+  med: { name: "Gold Medal 🏅", globallyLimited: true },
+  ino: { name: "Innocamp Coin 🪙", globallyLimited: false }
+};
+
+const GLOBAL_STOCK_DEFAULTS = {
+  dia: 8,
+  med: 8
+};
+
+/* =========================
+   Startup
+========================= */
+window.onload = async () => {
   const saved = localStorage.getItem("playerdata");
   if (saved) {
     const player = JSON.parse(saved);
     currentUser = player.username;
+
     showGameUI(player.username, player.balance);
+
+    // Core watchers
     startBalancePolling();
     watchSlaveStatus();
     workerMenu();
+
+    // Boost watcher
+    watchBoost();
+
+    // Inventory + Market watchers
+    await ensureInventory();
+    watchInventory();
+    watchMarket();
+
+    // (Optional) ensure stock docs exist — only does anything if missing
+    // You can also call this manually as admin: ensureStockDocs()
+    ensureStockDocs().catch(() => {});
   } else {
     document.getElementById("logintext").style.display = "none";
   }
 };
 
+// Enter key login
 ["username", "pin"].forEach(id => {
   document.getElementById(id).addEventListener("keypress", (e) => {
     if (e.key === "Enter") login();
   });
 });
 
+/* =========================
+   Login / Signup
+========================= */
 window.login = async function () {
   const username = document.getElementById("username").value.trim().toLowerCase();
   const pin = document.getElementById("pin").value.trim();
@@ -64,9 +110,17 @@ window.login = async function () {
   if (data.pin === pin) {
     currentUser = username;
     saveAndShow(username, pin, data.balance);
+
     startBalancePolling();
     watchSlaveStatus();
     workerMenu();
+
+    watchBoost();
+
+    await ensureInventory();
+    watchInventory();
+    watchMarket();
+    ensureStockDocs().catch(() => {});
   } else {
     alert("Wrong PIN");
   }
@@ -84,11 +138,61 @@ function showGameUI(username, balance) {
   document.getElementById("loggedin").textContent = username;
 
   document.getElementById("gameBox").style.display = "block";
-  // Show balance instantly on login (no animation)
   document.getElementById("balance").textContent = balance;
-
 }
 
+function usernameTest(s) {
+  return /^[a-z0-9]+$/g.test(s);
+}
+
+window.signUp = async function () {
+  const username = prompt("Enter a username:")?.trim().toLowerCase();
+  if (!username) {
+    alert("Signup canceled.");
+    return;
+  }
+  if (!usernameTest(username) || username === "none") {
+    alert("Invalid username.");
+    return;
+  }
+
+  const pin = prompt("Enter a 4-digit PIN:")?.trim();
+  if (!pin || pin.length !== 4 || isNaN(pin)) {
+    alert("Invalid PIN.");
+    return;
+  }
+
+  const userRef = doc(db, "playerdata", username);
+  const userSnap = await getDoc(userRef);
+
+  if (userSnap.exists()) {
+    alert("Username already taken.");
+    return;
+  }
+
+  const startingBalance = 1000;
+  await setDoc(userRef, { pin, balance: startingBalance });
+
+  currentUser = username;
+  saveAndShow(username, pin, startingBalance);
+
+  await ensureInventory();
+  watchInventory();
+  watchMarket();
+  ensureStockDocs().catch(() => {});
+
+  alert("Welcome to Sigma Market Online!");
+
+  startBalancePolling();
+  watchSlaveStatus();
+  workerMenu();
+
+  watchBoost();
+};
+
+/* =========================
+   Bank - send money
+========================= */
 document.getElementById("send").addEventListener("click", async () => {
   const recipient = document.getElementById("recipient").value.trim().toLowerCase();
   const amount = parseFloat(document.getElementById("amount").value);
@@ -139,13 +243,16 @@ document.getElementById("send").addEventListener("click", async () => {
   alert(`Sent $${amount} to ${recipient}`);
 });
 
+/* =========================
+   Logout rule (workers can't)
+========================= */
 window.logout = async function () {
   if (!currentUser) return;
 
   const workerRef = doc(db, "workers", currentUser);
   const workerSnap = await getDoc(workerRef);
 
-  // 🚫 Only block logout if a worker doc EXISTS AND slave === true
+  // Only block logout if worker doc exists AND slave === true
   if (workerSnap.exists()) {
     const data = workerSnap.data();
     if (data.slave === true) {
@@ -154,7 +261,6 @@ window.logout = async function () {
     }
   }
 
-  // 🕊️ Everyone else can leave
   localStorage.removeItem("playerdata");
   currentUser = null;
 
@@ -172,45 +278,9 @@ window.prelogout = function () {
   if (confirm("Are you sure you want to log out?")) logout();
 };
 
-function usernameTest(s) {
-  return /^[a-z0-9]+$/g.test(s);
-}
-
-window.signUp = async function () {
-  const username = prompt("Enter a username:")?.trim().toLowerCase();
-  if (!username) {
-    alert("Signup canceled.");
-    return;
-  }
-  if (!usernameTest(username) || username === "none") {
-    alert("Invalid username.");
-    return;
-  }
-
-  const pin = prompt("Enter a 4-digit PIN:")?.trim();
-  if (!pin || pin.length !== 4 || isNaN(pin)) {
-    alert("Invalid PIN.");
-    return;
-  }
-
-  const userRef = doc(db, "playerdata", username);
-  const userSnap = await getDoc(userRef);
-
-  if (userSnap.exists()) {
-    alert("Username already taken.");
-    return;
-  }
-
-  const startingBalance = 1000;
-  await setDoc(userRef, { pin, balance: startingBalance });
-  currentUser = username;
-  saveAndShow(username, pin, startingBalance);
-  alert("Welcome to Sigma Market Online!");
-  startBalancePolling();
-  watchSlaveStatus();
-  workerMenu();
-};
-
+/* =========================
+   Redeem codes (money)
+========================= */
 window.redeemCode = async function () {
   if (!currentUser) {
     alert("Please log in first.");
@@ -224,13 +294,12 @@ window.redeemCode = async function () {
     return;
   }
 
-  if (codeInput === 'indian') {
+  if (codeInput === "indian") {
     alert("WHY DID YOU REDEEM IT");
     document.getElementById("redeemID").value = "";
     return;
   }
 
-  // ✅ Now we check if code was already redeemed
   const redeemedCodes = JSON.parse(localStorage.getItem("redeemedCodes")) || [];
   if (redeemedCodes.includes(codeInput)) {
     alert("You’ve already redeemed this code.");
@@ -243,14 +312,10 @@ window.redeemCode = async function () {
   try {
     await runTransaction(db, async (transaction) => {
       const codeSnap = await transaction.get(codeRef);
-      if (!codeSnap.exists()) {
-        throw new Error("Invalid code.");
-      }
+      if (!codeSnap.exists()) throw new Error("Invalid code.");
 
       const codeData = codeSnap.data();
-      if (codeData.uses <= 0) {
-        throw new Error("This code has already been fully redeemed.");
-      }
+      if (codeData.uses <= 0) throw new Error("This code has already been fully redeemed.");
 
       const playerSnap = await transaction.get(playerRef);
       const playerData = playerSnap.exists() ? playerSnap.data() : { balance: 0 };
@@ -261,12 +326,10 @@ window.redeemCode = async function () {
       transaction.update(codeRef, { uses: codeData.uses - 1 });
     });
 
-    // Update localStorage
     const updatedPlayerSnap = await getDoc(playerRef);
-    const updatedPlayerData = updatedPlayerSnap.data();
-    const updatedBalance = updatedPlayerData.balance;
+    const updatedBalance = updatedPlayerSnap.data().balance;
 
-    alert(`Code redeemed successfully!`);
+    alert("Code redeemed successfully!");
 
     const balanceEl = document.getElementById("balance");
     const currentDisplayed = parseInt(balanceEl.textContent) || 0;
@@ -276,10 +339,8 @@ window.redeemCode = async function () {
     saved.balance = updatedBalance;
     localStorage.setItem("playerdata", JSON.stringify(saved));
 
-    // 💾 Save redeemed code
     redeemedCodes.push(codeInput);
     localStorage.setItem("redeemedCodes", JSON.stringify(redeemedCodes));
-
   } catch (err) {
     alert(err.message || "Something went wrong. Please try again.");
     console.error(err);
@@ -288,6 +349,9 @@ window.redeemCode = async function () {
   document.getElementById("redeemID").value = "";
 };
 
+/* =========================
+   Balance snapshot + master cut
+========================= */
 function startBalancePolling() {
   if (!currentUser) return;
 
@@ -302,13 +366,10 @@ function startBalancePolling() {
     const newBalance = snap.data().balance;
     const localData = JSON.parse(localStorage.getItem("playerdata")) || {};
 
-    if (lastBalance === null) {
-      lastBalance = newBalance;
-    }
+    if (lastBalance === null) lastBalance = newBalance;
 
     const diff = newBalance - lastBalance;
 
-    // Visuals
     if (localData.balance !== newBalance) {
       const balanceEl = document.getElementById("balance");
       const currentDisplayed = parseInt(balanceEl.textContent) || 0;
@@ -323,27 +384,19 @@ function startBalancePolling() {
     const workerSnap = await getDoc(workerRef);
     if (workerSnap.exists()) {
       const data = workerSnap.data();
-      console.log("[Worker Info]", data);
-
       if (data.slave === true && data.master && diff > 0) {
         const masterRef = doc(db, "playerdata", data.master);
 
         await runTransaction(db, async (transaction) => {
           const masterSnap = await transaction.get(masterRef);
           const slaveSnap = await transaction.get(playerRef);
-
           if (!masterSnap.exists() || !slaveSnap.exists()) return;
 
           const masterCut = Math.floor(diff * 0.4);
           const newSlaveBalance = slaveSnap.data().balance - masterCut;
 
-          transaction.update(masterRef, {
-            balance: increment(masterCut)
-          });
-
-          transaction.update(playerRef, {
-            balance: newSlaveBalance
-          });
+          transaction.update(masterRef, { balance: increment(masterCut) });
+          transaction.update(playerRef, { balance: newSlaveBalance });
 
           console.log(`[Master Cut] ${data.master} earned $${masterCut}`);
         });
@@ -356,37 +409,35 @@ function startBalancePolling() {
   });
 }
 
+/* =========================
+   Number animation
+========================= */
 function animateNumber(element, start, end, duration = 500) {
   const startTimestamp = performance.now();
   const step = (currentTime) => {
     const progress = Math.min((currentTime - startTimestamp) / duration, 1);
     const currentValue = Math.floor(progress * (end - start) + start);
     element.textContent = currentValue;
-    if (progress < 1) {
-      requestAnimationFrame(step);
-    } else {
-      element.textContent = end; // ensure exact final value
-    }
+    if (progress < 1) requestAnimationFrame(step);
+    else element.textContent = end;
   };
   requestAnimationFrame(step);
 }
 
+/* =========================
+   Confetti + jackpot overlay
+========================= */
 window.win = function (amount, display) {
   console.log(`win function ${amount}, ${display}`);
   amount = Math.floor(amount);
-  
-  if (amount <= 0) return; // no celebration for losses
+
+  if (amount <= 0) return;
 
   if (amount <= 10) {
-    // Small wins
     confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
-  } 
-  else if (amount <= 100) {
-    // Medium wins
+  } else if (amount <= 100) {
     confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
-  } 
-  else {
-    // Jackpot
+  } else {
     const overlay = document.createElement("div");
     overlay.style.position = "fixed";
     overlay.style.top = "0";
@@ -405,47 +456,31 @@ window.win = function (amount, display) {
 
     const jackpotText = document.createElement("div");
     jackpotText.innerHTML = `JACKPOT<br>$${display}`;
-    jackpotText.style.fontSize = "0"; // start tiny
+    jackpotText.style.fontSize = "0";
     jackpotText.style.opacity = "0";
     jackpotText.style.animation = "jackpotZoom 1s ease-out forwards";
 
     overlay.appendChild(jackpotText);
     document.body.appendChild(overlay);
 
-    // Confetti loop
     let confettiInterval = setInterval(() => {
       confetti({ particleCount: 200, spread: 120, origin: { y: 0.6 } });
     }, 400);
 
-    // Fireworks burst
     let fireworkInterval = setInterval(() => {
-      confetti({
-        particleCount: 100,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.6 }
-      });
-      confetti({
-        particleCount: 100,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.6 }
-      });
+      confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0, y: 0.6 } });
+      confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1, y: 0.6 } });
     }, 600);
 
-    // Remove after 5s
     setTimeout(() => {
       clearInterval(confettiInterval);
       clearInterval(fireworkInterval);
       overlay.style.animation = "fadeOut 0.5s ease forwards";
-      setTimeout(() => {
-        document.body.removeChild(overlay);
-      }, 500);
+      setTimeout(() => document.body.removeChild(overlay), 500);
     }, 5000);
   }
 };
 
-// Animations
 const style = document.createElement("style");
 style.innerHTML = `
 @keyframes jackpotZoom {
@@ -459,24 +494,20 @@ style.innerHTML = `
 }`;
 document.head.appendChild(style);
 
+/* =========================
+   Global boost (limited)
+========================= */
 const boostRef = doc(db, "server", "boost");
-let boost = 1; // global live boost value
-
-function getDecayed(boost, lastUpdated) {
-  const elapsed = (Date.now() - lastUpdated) / 1000; // seconds
-  return Math.max(1, boost - 0.001 * elapsed);
-}
+let boost = 1;
 
 window.increaseBoost = async function () {
   const snap = await getDoc(boostRef);
   if (!snap.exists()) return;
 
-  let currentBoost = boost; // live decayed value
-
-  // Increase
+  let currentBoost = boost;
   currentBoost += 0.045;
 
-  // 🔒 HARD LIMIT
+  // HARD LIMIT
   currentBoost = Math.min(currentBoost, MAX_BOOST);
 
   await updateDoc(boostRef, {
@@ -490,40 +521,35 @@ window.watchBoost = function () {
   const boostValue = document.getElementById("boostValue");
 
   let lastUpdatedLocal = Date.now();
-  let baseBoost = 1; // last server snapshot
+  let baseBoost = 1;
 
   onSnapshot(boostRef, (snap) => {
     if (!snap.exists()) return;
-
     let { boost: storedBoost = 1, lastUpdated = Date.now() } = snap.data();
-
     baseBoost = storedBoost;
     lastUpdatedLocal = lastUpdated;
   });
 
   function tick() {
     const now = Date.now();
-    const elapsed = (now - lastUpdatedLocal) / 1000; // seconds since last update
+    const elapsed = (now - lastUpdatedLocal) / 1000;
 
-    // apply decay
     const displayBoost = Math.max(1, baseBoost - 0.003 * elapsed);
 
-    // update UI
     boostValue.textContent = displayBoost.toFixed(3) + "x";
     const width = Math.min(displayBoost - 1, 1) * 100;
     boostBar.style.width = width + "%";
 
-    // update global "boost" so spin() & increaseBoost() can use it
     boost = displayBoost;
-
     requestAnimationFrame(tick);
   }
 
   tick();
 };
 
-watchBoost();
-
+/* =========================
+   Spin
+========================= */
 window.spin = async function () {
   const spinBtn = document.getElementById("spin");
   spinBtn.disabled = true;
@@ -571,44 +597,25 @@ window.spin = async function () {
     const restricted = [];
 
     if (restricted.includes(currentUser)) {
-      if (random <= 120) {
-        mult = -(Math.random() * 0.5 + 0.5);
-      } else if (random <= 220) {
-        mult = (Math.random() * 3 + 2);          // x3
-    /*} else if (random <= 231) {
-      result = amount * 4;          // x5
-   */ } else if (random <= 236) {
-        mult = 9;          // x10
-      } else if (random <= 239) {
-        mult = 24;         // x25
-      } else {
-        mult = 200;        // Jackpot
-      }
+      if (random <= 120) mult = -(Math.random() * 0.5 + 0.5);
+      else if (random <= 220) mult = (Math.random() * 3 + 2);
+      else if (random <= 236) mult = 9;
+      else if (random <= 239) mult = 24;
+      else mult = 200;
     } else {
-      if (random <= 100) {
-        mult = -(Math.random() * 0.5 + 0.5);
-      } else if (random <= 216) {
-        mult = (Math.random() * 3 + 2);          // x3
-    /*} else if (random <= 231) {
-      result = amount * 4;          // x5
-   */ } else if (random <= 234) {
-        mult = 9;          // x10
-      } else if (random <= 239) {
-        mult = 24;         // x25
-      } else {
-        mult = 200;        // Jackpot
-      }
+      if (random <= 100) mult = -(Math.random() * 0.5 + 0.5);
+      else if (random <= 216) mult = (Math.random() * 3 + 2);
+      else if (random <= 234) mult = 9;
+      else if (random <= 239) mult = 24;
+      else mult = 200;
     }
 
-    if (mult < 0) {
-      result = spinval*mult;
-    } else {
-      result = amount*mult*boost;
-    }
-    
+    if (mult < 0) result = spinval * mult;
+    else result = amount * mult * boost;
+
     result = Math.floor(result);
     win(mult, result);
-    
+
     increaseBoost();
 
     const newBalance = playerData.balance + result;
@@ -624,7 +631,7 @@ window.spin = async function () {
 
     if (result < 0) {
       spinResultEl.innerHTML = `You <b>lost</b> $${-result}`;
-    } else if (result === amount * 200) {
+    } else if (mult === 200) {
       spinResultEl.innerHTML = `You <b>won</b> $${result}<br><b id="jackpot">JACKPOT</b>`;
       const jackpotEl = document.getElementById("jackpot");
       let colors = ["yellow", "green", "blue", "indigo", "violet", "red", "orange"];
@@ -634,28 +641,27 @@ window.spin = async function () {
         i++;
         if (i > 20) {
           clearInterval(interval);
-          jackpotEl.style.display = 'none';
+          jackpotEl.style.display = "none";
         }
       }, 75);
     } else {
       spinResultEl.innerHTML = `You <b>won</b> $${result}`;
     }
   } finally {
-    spinBtn.disabled = false; // Always re-enable, even on error or early return
+    spinBtn.disabled = false;
   }
 };
 
-
-
+/* =========================
+   Server status watchdog
+========================= */
 const serverRef = doc(db, "server", "status");
 let alerted = false;
 
 if (!window.location.pathname.includes("beta")) {
   onSnapshot(serverRef, (snap) => {
     if (!snap.exists()) return;
-
     const stopped = snap.data().stopped;
-
     if (stopped === true && !alerted) {
       alerted = true;
       alert("Server restarting");
@@ -668,8 +674,11 @@ if (!window.location.pathname.includes("beta")) {
 
 window.signupoptions = function () {
   signUp();
-}
+};
 
+/* =========================
+   Formatting helpers
+========================= */
 function formatNumber(num) {
   if (num >= 1e12) return (num / 1e12).toFixed(1).replace(/\.0$/, "") + "T";
   if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
@@ -692,68 +701,17 @@ function updateMaxReward() {
   outputEl.textContent = "$" + formatNumber(reward);
 }
 
-// Attach event listener for live update
 document.getElementById("spinCode").addEventListener("input", updateMaxReward);
-
-// Optionally, run once on page load in case spinCode already has value
 updateMaxReward();
 
-// Replace with actual username
-window.openLootbox = async function () {
-  if (!currentUser) {
-    alert("You must be logged in to open lootboxes.");
-    return;
-  }
-
-  const userRef = doc(db, "inventory", currentUser);
-  const userSnap = await getDoc(userRef);
-
-  // If no inventory document, create it with empty inv and some lootboxes
-  if (!userSnap.exists()) {
-    await setDoc(userRef, {
-      playerinv: [0, 0, 0, 0, 0], // 5 item slots initialized to 0 count
-      playerboxes: [1, 0], // 1 normal lootbox, 0 premium lootbox by default
-    });
-    alert("Inventory created. Please try opening a lootbox again.");
-    return;
-  }
-
-  const data = userSnap.data();
-  const boxes = data.playerboxes || [0, 0];
-  const inv = data.playerinv || [0, 0, 0, 0, 0];
-
-  if (boxes[0] <= 0) {
-    alert("No normal lootboxes left!");
-    return;
-  }
-
-  // Remove one normal lootbox
-  boxes[0]--;
-
-  // Pick a random item ID 0-4
-  const itemId = Math.floor(Math.random() * 5);
-
-  // Make sure inventory array is long enough
-  while (inv.length <= itemId) inv.push(0);
-
-  // Increment count of that item
-  inv[itemId]++;
-
-  // Update Firestore
-  await updateDoc(userRef, {
-    playerboxes: boxes,
-    playerinv: inv,
-  });
-
-  alert(`You received Item ${itemId}!`);
-}
-
+/* =========================
+   Leaderboard
+========================= */
 window.loadLeaderboard = function () {
   const leaderboardEl = document.getElementById("leaderboard");
   leaderboardEl.innerHTML = "Loading...";
 
   const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
-
   const q = query(collection(db, "playerdata"));
 
   onSnapshot(q, (querySnapshot) => {
@@ -771,17 +729,14 @@ window.loadLeaderboard = function () {
       }
     });
 
-    // Sort by balance descending
     players.sort((a, b) => b.balance - a.balance);
 
     let output = "";
 
-    // Top 5
     players.slice(0, 5).forEach((p, i) => {
       output += `<div>#${i + 1}: ${p.username} - $${formatNumber(p.balance)}</div>`;
     });
 
-    // Show current user if not in top 5
     const currentIndex = players.findIndex(p => p.username === currentUser);
     if (currentIndex >= 5) {
       const p = players[currentIndex];
@@ -797,6 +752,9 @@ window.loadLeaderboard = function () {
 
 loadLeaderboard();
 
+/* =========================
+   Workers system
+========================= */
 window.enslave = async function (slaveUsername, masterUsername) {
   const slaveRef = doc(db, "workers", slaveUsername);
   const masterRef = doc(db, "workers", masterUsername);
@@ -804,7 +762,6 @@ window.enslave = async function (slaveUsername, masterUsername) {
   const slaveSnap = await getDoc(slaveRef);
   const masterSnap = await getDoc(masterRef);
 
-  // Check if master already owns a slave
   if (masterSnap.exists()) {
     const masterData = masterSnap.data();
     if (masterData.owns && masterData.owns !== "") {
@@ -818,7 +775,6 @@ window.enslave = async function (slaveUsername, masterUsername) {
     return;
   }
 
-  // Update slave doc
   await setDoc(slaveRef, {
     slave: true,
     master: masterUsername,
@@ -827,7 +783,6 @@ window.enslave = async function (slaveUsername, masterUsername) {
     lastpay: serverTimestamp(),
   }, { merge: true });
 
-  // Create or update master doc
   if (!masterSnap.exists()) {
     await setDoc(masterRef, {
       slave: false,
@@ -848,7 +803,7 @@ window.enslave = async function (slaveUsername, masterUsername) {
 
   alert(`${slaveUsername} is now a worker of ${masterUsername}`);
   workerMenu();
-}
+};
 
 window.freeSlave = async function (slaveUsername) {
   const slaveRef = doc(db, "workers", slaveUsername);
@@ -868,7 +823,6 @@ window.freeSlave = async function (slaveUsername) {
   const masterRef = doc(db, "workers", masterUsername);
   const masterSnap = await getDoc(masterRef);
 
-  // Clear master's owns field if it equals this slave
   if (masterSnap.exists()) {
     const owns = masterSnap.data().owns || "";
     if (owns === slaveUsername) {
@@ -876,7 +830,6 @@ window.freeSlave = async function (slaveUsername) {
     }
   }
 
-  // Update slave doc to escaped state
   await updateDoc(slaveRef, {
     slave: false,
     master: null,
@@ -886,7 +839,7 @@ window.freeSlave = async function (slaveUsername) {
 
   alert(`${slaveUsername} has been freed from ${masterUsername}`);
   workerMenu();
-}
+};
 
 window.resetTest = async function () {
   const workersCol = collection(db, "workers");
@@ -897,35 +850,31 @@ window.resetTest = async function () {
   });
 
   await Promise.all(deletePromises);
-  alert("Cleared workerdata")
-}
+  alert("Cleared workerdata");
+};
 
 window.updatebankrupt = async function () {
   const dropdown = document.getElementById("bankrupt");
-
   const snapshot = await getDocs(collection(db, "playerdata"));
   let count = 0;
 
   const excludedUsers = ["admin", "testplayer", "testplayer2", "testplayer3", "testplayer4"];
 
+  // Clear old options except placeholder
+  dropdown.innerHTML = `<option disabled selected>Choose a player</option>`;
+
   for (const docSnap of snapshot.docs) {
     const data = docSnap.data();
     const userId = docSnap.id;
 
-    // Skip excluded, current user, and high balance
     if ((data.balance || 0) > 300 || userId === currentUser || excludedUsers.includes(userId)) {
       continue;
     }
 
-    // Check if the user is a slave
     const workerRef = doc(db, "workers", userId);
     const workerSnap = await getDoc(workerRef);
+    if (workerSnap.exists() && workerSnap.data().slave === true) continue;
 
-    if (workerSnap.exists() && workerSnap.data().slave === true) {
-      continue; // Skip enslaved users
-    }
-
-    // Passed all checks: add to dropdown
     const option = document.createElement("option");
     option.value = userId;
     option.textContent = `${userId} ($${data.balance})`;
@@ -939,7 +888,7 @@ window.updatebankrupt = async function () {
     option.disabled = true;
     dropdown.appendChild(option);
   }
-}
+};
 
 updatebankrupt();
 
@@ -952,14 +901,12 @@ window.enslaveSelected = function () {
   if (confirm(`Do you want to take ${selected} as your worker?`)) {
     enslave(selected, currentUser);
   }
-}
+};
 
 window.watchSlaveStatus = async function (userId = currentUser) {
   if (!userId) return;
 
   const workerRef = doc(db, "workers", userId);
-
-  // Get previously known slave state from localStorage
   const key = `slaveStatus_${userId}`;
   let previouslySlave = localStorage.getItem(key) === "true";
 
@@ -969,7 +916,6 @@ window.watchSlaveStatus = async function (userId = currentUser) {
     const data = snap.data();
     const isNowSlave = data.slave === true;
 
-    // Trigger alert only if newly enslaved
     if (isNowSlave && !previouslySlave) {
       alert(`⚠️ You have been enslaved by another player.\nYou are now a worker of ${data.master}`);
       workerMenu();
@@ -978,7 +924,6 @@ window.watchSlaveStatus = async function (userId = currentUser) {
       workerMenu();
     }
 
-    // Update both local variable and localStorage
     previouslySlave = isNowSlave;
     localStorage.setItem(key, isNowSlave ? "true" : "false");
   });
@@ -987,13 +932,17 @@ window.watchSlaveStatus = async function (userId = currentUser) {
 window.freeSlaveConfirm = async function () {
   const masterRef = doc(db, "workers", currentUser);
   const masterSnap = await getDoc(masterRef);
+  if (!masterSnap.exists()) {
+    alert("You do not own a worker.");
+    return;
+  }
   const data = masterSnap.data();
   const slaveName = data.owns;
 
   if (confirm(`Confirm freeing your worker ${slaveName}?`)) {
     freeSlave(slaveName);
   }
-}
+};
 
 window.workerMenu = async function () {
   const text = document.getElementById("workerBar");
@@ -1002,38 +951,47 @@ window.workerMenu = async function () {
   const free = document.getElementById("freeslaveBtn");
 
   if (!currentUser) return;
+
   const ref = doc(db, "workers", currentUser);
   const snap = await getDoc(ref);
+
   if (!snap.exists()) {
-    free.style.display = 'none';
-    cf.style.display = 'block';
-    menu.style.display = 'block';
+    free.style.display = "none";
+    cf.style.display = "block";
+    menu.style.display = "block";
     text.innerHTML = `Select a player with a net worth less than $300 to become your worker.`;
+    return;
   }
 
   const data = snap.data();
   const isSlave = data.slave === true;
-  const isMaster = typeof data.owns === 'string' && data.owns.length > 0;
+  const isMaster = typeof data.owns === "string" && data.owns.length > 0;
 
   if (isMaster) {
-    free.style.display = 'block';
-    cf.style.display = 'none';
-    menu.style.display = 'none';
-    const slavenet = (await getDoc(doc(db, "playerdata", data.owns))).data().balance;
+    free.style.display = "block";
+    cf.style.display = "none";
+    menu.style.display = "none";
+
+    const slavenetSnap = await getDoc(doc(db, "playerdata", data.owns));
+    const slavenet = slavenetSnap.exists() ? (slavenetSnap.data().balance || 0) : 0;
+
     text.innerHTML = `You currently have <b>${data.owns}</b> as your worker. Your worker has a net worth of $${slavenet}.`;
   } else if (isSlave) {
-    free.style.display = 'none';
-    cf.style.display = 'none';
-    menu.style.display = 'none';
+    free.style.display = "none";
+    cf.style.display = "none";
+    menu.style.display = "none";
     text.innerHTML = `You are a worker of <b>${data.master}</b>. Workers have 40% of their earnings taken away to their master.`;
   } else {
-    free.style.display = 'none';
-    cf.style.display = 'block';
-    menu.style.display = 'block';
+    free.style.display = "none";
+    cf.style.display = "block";
+    menu.style.display = "block";
     text.innerHTML = `Select a player with a net worth less than $300 to become your worker.`;
   }
-}
+};
 
+/* =========================
+   Auction listener
+========================= */
 window.listenToAuction = function () {
   const auctionRef = doc(db, "server", "auction");
   let redirected = false;
@@ -1049,3 +1007,280 @@ window.listenToAuction = function () {
 };
 
 listenToAuction();
+
+/* ==========================================================
+   ===================== MARKET SYSTEM ======================
+   ========================================================== */
+
+/* =========================
+   Inventory ensure + watcher
+========================= */
+async function ensureInventory() {
+  if (!currentUser) return;
+
+  const invRef = doc(db, "inventory", currentUser);
+  const invSnap = await getDoc(invRef);
+
+  if (!invSnap.exists()) {
+    await setDoc(invRef, { dia: 0, med: 0, ino: 0 });
+  }
+}
+
+window.watchInventory = function () {
+  if (!currentUser) return;
+
+  const invRef = doc(db, "inventory", currentUser);
+
+  onSnapshot(invRef, (snap) => {
+    if (!snap.exists()) return;
+
+    const inv = snap.data();
+
+    // If you later add UI elements, hook them here.
+    // Example: document.getElementById("invDia").textContent = inv.dia || 0;
+    console.log("[Inventory]", inv);
+  }, (err) => {
+    console.error("Inventory watcher error:", err);
+  });
+};
+
+/* =========================
+   Global stock docs (for dia/med)
+========================= */
+async function ensureStockDocs() {
+  // This is safe to call often; it only creates docs if missing.
+  const stockCol = collection(db, "stock");
+
+  for (const key of Object.keys(GLOBAL_STOCK_DEFAULTS)) {
+    const sref = doc(stockCol, key);
+    const ssnap = await getDoc(sref);
+    if (!ssnap.exists()) {
+      await setDoc(sref, { remaining: GLOBAL_STOCK_DEFAULTS[key] });
+    }
+  }
+}
+
+/* =========================
+   Admin mint (optional)
+   Gives an item to a user and consumes global stock if limited.
+   Usage: mintItem("someone", "dia", 1)
+========================= */
+window.mintItem = async function (toUser, itemKey, qty = 1) {
+  qty = Math.floor(Number(qty));
+  toUser = (toUser || "").trim().toLowerCase();
+
+  if (currentUser !== "admin") {
+    alert("Admin only.");
+    return;
+  }
+  if (!toUser || !ITEMS[itemKey] || qty <= 0) {
+    alert("Invalid mint.");
+    return;
+  }
+
+  const invRef = doc(db, "inventory", toUser);
+  const playerRef = doc(db, "playerdata", toUser);
+  const stockRef = doc(db, "stock", itemKey);
+
+  await runTransaction(db, async (tx) => {
+    const playerSnap = await tx.get(playerRef);
+    if (!playerSnap.exists()) throw new Error("User not found.");
+
+    const invSnap = await tx.get(invRef);
+    if (!invSnap.exists()) tx.set(invRef, { dia: 0, med: 0, ino: 0 });
+
+    if (ITEMS[itemKey].globallyLimited) {
+      const stockSnap = await tx.get(stockRef);
+      if (!stockSnap.exists()) {
+        tx.set(stockRef, { remaining: GLOBAL_STOCK_DEFAULTS[itemKey] ?? 0 });
+      }
+      const remaining = (stockSnap.exists() ? stockSnap.data().remaining : (GLOBAL_STOCK_DEFAULTS[itemKey] ?? 0));
+      if (remaining < qty) throw new Error("Not enough global stock remaining.");
+      tx.update(stockRef, { remaining: remaining - qty });
+    }
+
+    tx.update(invRef, { [itemKey]: increment(qty) });
+  });
+
+  alert(`Minted ${qty}x ${ITEMS[itemKey].name} to ${toUser}`);
+};
+
+/* =========================
+   Market watcher + optional render hook
+========================= */
+window.watchMarket = function () {
+  const q = query(collection(db, "market"));
+
+  onSnapshot(q, (snap) => {
+    const listings = [];
+    snap.forEach(d => listings.push({ id: d.id, ...d.data() }));
+
+    // If you later add UI elements, hook them here.
+    // For now just log and keep infra ready.
+    console.log("[Market listings]", listings);
+
+    // Optional: If you add <div id="marketList"></div> in HTML later,
+    // this will automatically render.
+    const marketListEl = document.getElementById("marketList");
+    if (marketListEl) {
+      listings.sort((a, b) => {
+        const at = a.created?.seconds || 0;
+        const bt = b.created?.seconds || 0;
+        return bt - at;
+      });
+
+      marketListEl.innerHTML = listings.map(L => {
+        const nm = ITEMS[L.item]?.name || L.item;
+        return `
+          <div style="border:1px solid #ddd; padding:8px; margin:6px 0; border-radius:8px;">
+            <div style="font-weight:600;">${nm}</div>
+            <div style="font-size:12px; opacity:.8;">Seller: ${L.seller}</div>
+            <div style="margin-top:6px;">
+              Price: <b>$${L.price}</b>
+              <button style="margin-left:10px;" onclick="buyListing('${L.id}')">Buy</button>
+              ${L.seller === currentUser ? `<button style="margin-left:6px;" onclick="cancelListing('${L.id}')">Cancel</button>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("") || "<i>No listings.</i>";
+    }
+  }, (err) => {
+    console.error("Market watcher error:", err);
+  });
+};
+
+/* =========================
+   Sell item -> create listing
+   Usage: sellItem("dia", 500)
+========================= */
+window.sellItem = async function (itemKey, price) {
+  if (!currentUser) {
+    alert("Please log in first.");
+    return;
+  }
+
+  itemKey = (itemKey || "").trim();
+  price = Math.floor(Number(price));
+
+  if (!ITEMS[itemKey] || !Number.isFinite(price) || price <= 0) {
+    alert("Invalid listing.");
+    return;
+  }
+
+  const sellerInvRef = doc(db, "inventory", currentUser);
+  const listingsCol = collection(db, "market");
+  const listingRef = doc(listingsCol); // pre-generate doc id so we can tx.set
+
+  await runTransaction(db, async (tx) => {
+    const invSnap = await tx.get(sellerInvRef);
+    if (!invSnap.exists()) throw new Error("Inventory not found.");
+
+    const inv = invSnap.data();
+    const owned = inv[itemKey] || 0;
+    if (owned <= 0) throw new Error("You don't own this item.");
+
+    // take item first to prevent dupes
+    tx.update(sellerInvRef, { [itemKey]: increment(-1) });
+
+    // create listing
+    tx.set(listingRef, {
+      seller: currentUser,
+      item: itemKey,
+      price: price,
+      created: serverTimestamp()
+    });
+  });
+
+  alert(`Listed ${ITEMS[itemKey].name} for $${price}`);
+};
+
+/* =========================
+   Cancel your listing -> return item
+========================= */
+window.cancelListing = async function (listingId) {
+  if (!currentUser) {
+    alert("Please log in first.");
+    return;
+  }
+  if (!listingId) return;
+
+  const listingRef = doc(db, "market", listingId);
+  const invRef = doc(db, "inventory", currentUser);
+
+  await runTransaction(db, async (tx) => {
+    const listingSnap = await tx.get(listingRef);
+    if (!listingSnap.exists()) throw new Error("Listing no longer exists.");
+
+    const L = listingSnap.data();
+    if (L.seller !== currentUser) throw new Error("Not your listing.");
+
+    // return item
+    tx.update(invRef, { [L.item]: increment(1) });
+
+    // delete listing
+    tx.delete(listingRef);
+  });
+
+  alert("Listing canceled. Item returned.");
+};
+
+/* =========================
+   Buy listing -> money + item transfer, delete listing
+========================= */
+window.buyListing = async function (listingId) {
+  if (!currentUser) {
+    alert("Please log in first.");
+    return;
+  }
+  if (!listingId) return;
+
+  const listingRef = doc(db, "market", listingId);
+  const buyerRef = doc(db, "playerdata", currentUser);
+  const buyerInvRef = doc(db, "inventory", currentUser);
+
+  await runTransaction(db, async (tx) => {
+    const listingSnap = await tx.get(listingRef);
+    if (!listingSnap.exists()) throw new Error("Listing is gone.");
+
+    const L = listingSnap.data();
+    if (L.seller === currentUser) throw new Error("You can't buy your own listing.");
+
+    const sellerRef = doc(db, "playerdata", L.seller);
+
+    const buyerSnap = await tx.get(buyerRef);
+    if (!buyerSnap.exists()) throw new Error("Buyer not found.");
+
+    const buyerBal = buyerSnap.data().balance || 0;
+    if (buyerBal < L.price) throw new Error("Not enough money.");
+
+    // money transfer
+    tx.update(buyerRef, { balance: increment(-L.price) });
+    tx.update(sellerRef, { balance: increment(L.price) });
+
+    // item to buyer
+    tx.update(buyerInvRef, { [L.item]: increment(1) });
+
+    // remove listing
+    tx.delete(listingRef);
+  });
+
+  // Update local storage + UI balance quickly (snapshot will also catch it)
+  try {
+    const buyerSnap2 = await getDoc(doc(db, "playerdata", currentUser));
+    if (buyerSnap2.exists()) {
+      const newBal = buyerSnap2.data().balance || 0;
+
+      const balanceEl = document.getElementById("balance");
+      const currentDisplayed = parseInt(balanceEl.textContent) || 0;
+      animateNumber(balanceEl, currentDisplayed, newBal);
+
+      const saved = JSON.parse(localStorage.getItem("playerdata")) || {};
+      saved.balance = newBal;
+      localStorage.setItem("playerdata", JSON.stringify(saved));
+    }
+  } catch (e) {
+    console.warn("Post-buy balance refresh failed:", e);
+  }
+
+  alert("Purchase successful!");
+};
