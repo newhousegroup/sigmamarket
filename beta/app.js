@@ -116,7 +116,7 @@ window.login = async function () {
     workerMenu();
 
     watchBoost();
-    startMarket();
+    await startMarket();
 
     await ensureInventory();
     watchInventory();
@@ -189,7 +189,7 @@ window.signUp = async function () {
   workerMenu();
 
   watchBoost();
-  startMarket();
+  await startMarket();
 };
 
 /* =========================
@@ -1197,7 +1197,8 @@ function watchSellListings() {
         <button onclick="buyFromSell('${d.id}')">Buy</button>
         </div>`;
     });
-    sellListings.innerHTML = html || "No listings";
+document.getElementById("sellListings").innerHTML =
+  html || "No listings";
   });
 }
 
@@ -1219,7 +1220,8 @@ function watchBuyOffers() {
         <button onclick="sellToBuyer('${d.id}')">Sell</button>
         </div>`;
     });
-    buyOffers.innerHTML = html || "No offers";
+document.getElementById("buyOffers").innerHTML =
+  html || "No offers";
   });
 }
 
@@ -1237,4 +1239,4 @@ async function startMarket() {
   watchBuyOffers();
 }
 
-startMarket();
+await startMarket();
