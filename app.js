@@ -1057,7 +1057,7 @@ window.watchMarket = function () {
 
     sellListings.innerHTML = listings.map(L=>`
       <div style="margin-bottom:6px;">
-        ${ITEMS[L.item].name} — $${L.price} by ${L.seller}
+        ${ITEMS[L.item].name} — $${formatNumber(L.price)} by ${L.seller}
         <button onclick="buyListing('${L.id}')">Buy</button>
         ${L.seller===currentUser?`<button onclick="cancelSell('${L.id}')">Cancel</button>`:""}
       </div>
@@ -1072,7 +1072,7 @@ window.watchMarket = function () {
 
     buyOffers.innerHTML = offers.map(O=>`
       <div style="margin-bottom:6px;">
-        Wants ${ITEMS[O.item].name} — paying $${O.price} (by ${O.buyer})
+        Wants ${ITEMS[O.item].name} — paying $${formatNumber(O.price)} by ${O.buyer}
         <button onclick="acceptBuy('${O.id}')">Sell</button>
         ${O.buyer===currentUser?`<button onclick="cancelBuy('${O.id}')">Cancel</button>`:""}
       </div>
