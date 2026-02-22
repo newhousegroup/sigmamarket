@@ -17,6 +17,7 @@ const db = getFirestore(app);
 
 const headingEl = document.getElementById("heading");
 const noteEl = document.getElementById("note");
+const verEl = document.getElementById("ver");
 
 // Animate dots
 let dots = 0;
@@ -35,6 +36,10 @@ const unsubscribe = onSnapshot(statusRef, (statusDoc) => {
     // Update admin note
     if (data.note !== undefined) {
       noteEl.textContent = "Admin note: " + data.note;
+    }
+    
+    if (data.ver !== undefined) {
+      verEl.textContent = data.ver;
     }
 
     // If server is back online
