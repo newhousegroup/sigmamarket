@@ -138,27 +138,21 @@ document.getElementById("send").addEventListener("click", async () => {
 });
 
 window.logout = async function () {
-
   if (!currentUser) return;
 
-  // 🔎 Check worker status in Firestore
-  const userRef = doc(db, "workers", currentUser);
-  const userSnap = await getDoc(userRef);
+  const workerRef = doc(db, "workers", currentUser);
+  const workerSnap = await getDoc(workerRef);
 
-  if (!userSnap.exists()) {
-    alert("Worker record not found.");
-    return;
+  // 🚫 Only block logout if a worker doc EXISTS AND slave === true
+  if (workerSnap.exists()) {
+    const data = workerSnap.data();
+    if (data.slave === true) {
+      alert("You cannot log out because you are a worker.");
+      return;
+    }
   }
 
-  const data = userSnap.data();
-
-  // 🚫 Workers cannot escape reality
-  if (data.slave === true) {
-    alert("You cannot log out because you are a worker.");
-    return;
-  }
-
-  // 🕊️ Free men may leave
+  // 🕊️ Everyone else can leave
   localStorage.removeItem("playerdata");
   currentUser = null;
 
