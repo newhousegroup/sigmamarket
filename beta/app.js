@@ -1053,37 +1053,49 @@ window.watchInventory = function () {
 ========================= */
 window.watchMarket = function () {
 
-  // SELL LISTINGS
-  onSnapshot(collection(db,"market_sell"), snap=>{
-    let html="";
-    snap.forEach(d=>{
-      const L={id:d.id,...d.data()};
-      html+=`
-        <div>
-          ${ITEM_KEY_TO_NAME[L.item]} — $${L.price} by ${L.seller}
-          <button onclick="buyListing('${L.id}')">Buy</button>
-          ${L.seller===currentUser?`<button onclick="cancelSell('${L.id}')">Cancel</button>`:""}
-        </div>
-      `;
-    });
-    sellListings.innerHTML = html || "<i>No listings</i>";
+  /* ===== SELL LISTINGS ===== */
+  const sellRef = collection(db, "msell");
+
+  onSnapshot(sellRef, (snap) => {
+    const listings = [];
+    snap.forEach(d => listings.push({ id: d.id, ...d.data() }));
+
+    listings.sort((a,b)=> (b.created?.seconds||0)-(a.created?.seconds||0));
+
+    const el = document.getElementById("sellListings");
+    if (!el) return;
+
+    el.innerHTML = listings.map(L => `
+      <div style="margin-bottom:6px;">
+        ${ITEMS[L.item].name} — $${L.price} by ${L.seller}
+        <button onclick="buyListing('${L.id}')">Buy</button>
+        ${L.seller === currentUser ? `<button onclick="cancelListing('${L.id}')">Cancel</button>` : ""}
+      </div>
+    `).join("") || "<i>No listings.</i>";
   });
 
-  // BUY OFFERS
-  onSnapshot(collection(db,"market_buy"), snap=>{
-    let html="";
-    snap.forEach(d=>{
-      const L={id:d.id,...d.data()};
-      html+=`
-        <div>
-          ${ITEM_KEY_TO_NAME[L.item]} — offering $${L.price} by ${L.buyer}
-          <button onclick="acceptBuy('${L.id}')">Sell to them</button>
-          ${L.buyer===currentUser?`<button onclick="cancelBuy('${L.id}')">Cancel</button>`:""}
-        </div>
-      `;
-    });
-    buyOffers.innerHTML = html || "<i>No offers</i>";
+
+  /* ===== BUY OFFERS ===== */
+  const buyRef = collection(db, "mbuy");
+
+  onSnapshot(buyRef, (snap) => {
+    const offers = [];
+    snap.forEach(d => offers.push({ id: d.id, ...d.data() }));
+
+    offers.sort((a,b)=> (b.created?.seconds||0)-(a.created?.seconds||0));
+
+    const el = document.getElementById("buyOffers");
+    if (!el) return;
+
+    el.innerHTML = offers.map(O => `
+      <div style="margin-bottom:6px;">
+        Wants ${ITEMS[O.item].name} — paying $${O.price} (by ${O.buyer})
+        <button onclick="sellToOffer('${O.id}')">Sell</button>
+        ${O.buyer === currentUser ? `<button onclick="cancelOffer('${O.id}')">Cancel</button>` : ""}
+      </div>
+    `).join("") || "<i>No offers.</i>";
   });
+
 };
 
 /* =========================
@@ -1096,7 +1108,7 @@ window.createSellFromUI = async function () {
   if(!item || !price) return alert("Invalid");
 
   const invRef = doc(db,"inventory",currentUser);
-  const listingRef = doc(collection(db,"market_sell"));
+  const listingRef = doc(collection(db,"msell"));
 
   await runTransaction(db, async tx=>{
     const invSnap=await tx.get(invRef);
@@ -1116,7 +1128,7 @@ window.createSellFromUI = async function () {
    BUY LISTING (pay money)
 ========================= */
 window.buyListing = async function (id) {
-  const ref=doc(db,"market_sell",id);
+  const ref=doc(db,"msell",id);
 
   await runTransaction(db, async tx=>{
     const snap=await tx.get(ref);
@@ -1139,7 +1151,7 @@ window.buyListing = async function (id) {
    CANCEL SELL LISTING
 ========================= */
 window.cancelSell = async function(id){
-  const ref=doc(db,"market_sell",id);
+  const ref=doc(db,"msell",id);
   const invRef=doc(db,"inventory",currentUser);
 
   await runTransaction(db, async tx=>{
@@ -1157,7 +1169,7 @@ window.createBuyFromUI = async function () {
   const item = ITEM_UI_TO_KEY[marketItem.value];
   const price = parseInt(marketPrice.value);
 
-  const ref=doc(collection(db,"market_buy"));
+  const ref=doc(collection(db,"mbuy"));
   await setDoc(ref,{buyer:currentUser,item,price});
   alert("Buy offer created!");
 };
@@ -1166,7 +1178,7 @@ window.createBuyFromUI = async function () {
    ACCEPT BUY OFFER (sell item)
 ========================= */
 window.acceptBuy = async function(id){
-  const ref=doc(db,"market_buy",id);
+  const ref=doc(db,"mbuy",id);
 
   await runTransaction(db, async tx=>{
     const snap=await tx.get(ref);
@@ -1188,5 +1200,5 @@ window.acceptBuy = async function(id){
 };
 
 window.cancelBuy = async id=>{
-  await deleteDoc(doc(db,"market_buy",id));
+  await deleteDoc(doc(db,"mbuy",id));
 };
